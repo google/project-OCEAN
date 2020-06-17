@@ -1,5 +1,7 @@
 # Project OCEAN
 
+"This is not an officially supported Google product"
+
 This repository contains code and related content for the OCEAN open source project.
 
 ## Resources
