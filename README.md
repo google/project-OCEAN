@@ -4,8 +4,20 @@
 
 This repository contains code and related content for the OCEAN open source project.
 
-## Resources
+## Overview / Goal
+Project OCEAN is an open science collaboration focused on understanding the open source ecosystems creating datasets that enable research and forming a clear understanding of the state of open source communities. OCEAN’s goal is to understand the health of the open source communities. 
 
+### Open Source Community Ecosystem Focus
+We are focused on studying the following ecosystems.
+- Angular
+- Go
+- Node
+- Python
+
+
+## Resources
+Listing of resources related to this project.
+- More to come
 
 ## Source Code Headers
 
