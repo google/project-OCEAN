@@ -12,7 +12,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License. -->
 
-##project-OCEAN SQL Information for Data Analysis 
+## project-OCEAN SQL Information for Data Analysis 
 
 Example SQL to explore metadata for existing BigQuery repos using Libraries.io dataset.
 
