@@ -24,6 +24,7 @@ Use the [Issue Template](docs/ISSUE_TEMPLATE.md) to log issues.
 
 Use the [Pull Request Template](docs/PULL_REQUEST_TEMPLATE.md) to log issues.
 
+
 ## Code reviews
 
 All submissions, including submissions by project members, require review. We
