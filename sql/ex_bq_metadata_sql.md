@@ -38,10 +38,9 @@ Query to get table schema.
 
 Query for more detailed table schema info including lastest update date, number of rows and size.
 
-    SELECT s.table_catalog, s.table_schema, s.table_name, s.table_type, s.is_insertable_into, s.is_typed, s.creation_time, t.last_modified_time, t.row_count, t.size_bytes, t.type
-    FROM bigquery-public-data.libraries_io.INFORMATION_SCHEMA.TABLES s
+    SELECT s.table_catalog, s.table_schema, s.table_name, s.table_type, s.is_insertable_into, s.is_typed, CAST(TIMESTAMP_MILLIS(s.creation_time) AS DATETIME) as creation_time, CAST(TIMESTAMP_MILLIS(t.last_modified_time) AS DATETIME) as last_modified_time, t.row_count, t.size_bytes / POW(10,9) as GB, t.type FROM bigquery-public-data.libraries_io.INFORMATION_SCHEMA.TABLES s 
     JOIN bigquery-public-data.libraries_io.__TABLES__ t 
-    ON s.table_name = t.table_id 
+    ON s.table_name = t.table_id
 
 
 Query to get column information for a table.
