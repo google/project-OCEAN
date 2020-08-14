@@ -15,8 +15,8 @@
 package main
 
 //TODO
-// Create tests
-// check the most recent file stored and pull only what isn't there
+// Create test
+// Check the most recent file stored and pull only what isn't there
 // Run this monthly at start of new month to pull all new data
 
 import (
@@ -30,65 +30,73 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 )
 
 type GCS struct {
+	ctx        context.Context
+	client     *storage.Client
+	bucket     *storage.BucketHandle
+}
+
+var (
+	mailingListURL string
+	projectID string
 	bucketName string
-	ctx context.Context
-	client *storage.Client
-	bucket *storage.BucketHandle
-}
+	gcs = GCS{}
+)
 
-func connectCTX() context.Context{
+func connectCTX() (context.Context, context.CancelFunc) {
 	ctx := context.Background()
-	//ctx, cancel := context.WithTimeout(ctx, time.Second*10)
-	//defer cancel()
-	return ctx
+	return context.WithTimeout(ctx, time.Second*10)
 }
 
-func (gcs *GCS) connectGCS() {
-	client, err := storage.NewClient(gcs.ctx)
-	if err != nil {
-		log.Fatalf("Failed to create client: %v", err)
+func (gcs *GCS) connectGCS() error {
+	if client, err := storage.NewClient(gcs.ctx); err != nil {
+		return fmt.Errorf("Failed to create client: %v", err)
+	} else {
+		gcs.client = client
+		return nil
 	}
-	gcs.client = client
-
 }
 
-func (gcs *GCS) createGCSBucket(projectID string) {
+func (gcs *GCS) createGCSBucket() error {
 	// Setup client bucket to work from
-	gcs.bucket = gcs.client.Bucket(gcs.bucketName)
+	gcs.bucket = gcs.client.Bucket(bucketName)
 
 	buckets := gcs.client.Buckets(gcs.ctx, projectID)
 	for {
 		attrs, err := buckets.Next()
-		// Assuming that if end Iterator then not found and need to create
+		// Assume that if Iterator end then not found and need to create bucket
 		if err == iterator.Done {
 			// Create bucket if it doesn't exist - https://cloud.google.com/storage/docs/reference/libraries
-			if err := gcs.bucket.Create(gcs.ctx, projectID, &storage.BucketAttrs {
-				Location:     "US",
+			if err := gcs.bucket.Create(gcs.ctx, projectID, &storage.BucketAttrs{
+				Location: "US",
 			}); err != nil {
 				// TODO - add random number to append to bucket name to resolve
-				log.Fatalf("Failed to create bucket:", err)
+				return fmt.Errorf("Failed to create bucket: %v", err)
 			}
-			fmt.Printf("Bucket %v created.\n", gcs.bucketName)
-			return
+			log.Printf("Bucket %v created.\n", bucketName)
+			return nil
 		}
 		if err != nil {
-			log.Fatalf("Issues setting up Bucket(%q).Objects(): %v. Double check project id.", attrs.Name, err)
+			return fmt.Errorf("Issues setting up Bucket(%q).Objects(): %v. Double check project id.", attrs.Name, err)
 		}
-		if attrs.Name == gcs.bucketName{
+		if attrs.Name == bucketName {
 			//getLatestFile() // TODO set this up to check and compare what is in the bucket vs what isn't
-			fmt.Printf("Bucket %v exists.\n", gcs.bucketName)
-			return
+			log.Printf("Bucket %v exists.\n", bucketName)
+			return nil
 		}
 	}
 }
 
-func (gcs *GCS) storeGCS(fname string, url string) {
-	response, _ := getHTTPResponse(url)
+func (gcs *GCS) storeGCS(fileName string, url string)  {
+	// Get HTTP response
+	response, _ := http.Get(url)
+	defer response.Body.Close()
+
 	if response.StatusCode == http.StatusOK {
-		obj := gcs.bucket.Object(fname)
+		obj := gcs.bucket.Object(fileName)
 
 		// w implements io.Writer.
 		w := obj.NewWriter(gcs.ctx)
@@ -96,43 +104,33 @@ func (gcs *GCS) storeGCS(fname string, url string) {
 		// Copy file into GCS
 		_, err := io.Copy(w, response.Body)
 		if err != nil {
-			log.Fatalf("Failed to copy doc to bucket:", err)
+			// TODO simply log failed to copy and store what is missing and keep going
+			log.Printf("Failed to copy doc to bucket: %v", err)
 		}
 		response.Body.Close()
 
 		// Close, just like writing a file.
 		if err := w.Close(); err != nil {
-			log.Fatalf("Failed to close:", err)
+			log.Fatalf("Failed to close: %v", err)
 		}
 	}
 }
 
-func getHTTPResponse(url string) (*http.Response, error){
-	response, err := http.Get(url)
-	if err != nil {
-		fmt.Println("****** HTTP ERROR *********", err)
-	}
-	// Defer response.Body.Close() // TODO figure out if this is usable in a func because its closing when passed
-	return response, err
-}
-
-
-func getMalingListData(url string, gcs GCS) {
-	dom, _ := goquery.NewDocument(url)
-
+func getMailingListData() {
+	dom, _ := goquery.NewDocument(mailingListURL)
 	dom.Find("tr").Find("td").Find("a").Each(func(i int, s *goquery.Selection) {
 		band, ok := s.Attr("href")
 		if ok {
 			check := strings.Split(band, ".")
-			len := len(check)-1
+			len := len(check) - 1
 			if check[len] == "gz" {
-				if strings.Split(band, ":")[0] != "https"{
-					path := url+band
-					//fmt.Printf("Relative path to store is: %s\n", path)
+				if strings.Split(band, ":")[0] != "https" {
+					path := mailingListURL + band
+					//log.Printf("Relative path to store is: %s\n", path)
 					gcs.storeGCS(band, path)
+					}
 				}
 			}
-		}
 	})
 }
 
@@ -153,25 +151,30 @@ func getMalingListData(url string, gcs GCS) {
 //		if err != nil {
 //			return fmt.Errorf("Bucket(%q).Objects(): %v", bucket, err)
 //		}
-//		fmt.Fprintln(w, attrs.Name)
+//		log.Fprintln(w, attrs.Name)
 //		setup.latestFile = attrs.Name
 //	}
 //}
 
 func main() {
 
-	var mailingListURL string
-	var projectID string
-	gcs := GCS{ ctx: connectCTX() }
-
-	flag.StringVar(&mailingListURL, "mailinglist-url", "","mailing list url to pull files from")
-	flag.StringVar(&projectID, "project-id", "", "project id")
-	flag.StringVar(&gcs.bucketName, "bucket", "","bucket name to store files")
-
 	// Parse passed in flags
+	flag.StringVar(&bucketName, "bucket-name", "", "bucket name to store files")
+	flag.StringVar(&mailingListURL, "mailinglist-url", "", "mailing list url to pull files from")
+	flag.StringVar(&projectID, "project-id", "", "project id")
 	flag.Parse()
-	gcs.connectGCS()
-	gcs.createGCSBucket(projectID)
 
-	getMalingListData(mailingListURL, gcs)
+	ctx, cancel := connectCTX()
+	defer cancel()
+	gcs.ctx = ctx
+
+	if err := gcs.connectGCS(); err != nil {
+		log.Fatal("Connect GCS failes: %v", err)
+	}
+
+	if err := gcs.createGCSBucket(); err != nil {
+		log.Fatal("Create GCS Bucket failed: %v", err)
+	}
+
+	getMailingListData()
 }
