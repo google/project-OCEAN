@@ -15,7 +15,7 @@
 package main
 
 //TODO
-// Create test
+// Add test of the specific page format expected and how to parse it
 // Check the most recent file stored and pull only what isn't there
 // Run this monthly at start of new month to pull all new data
 
@@ -34,21 +34,21 @@ import (
 )
 
 type GCS struct {
-	ctx        context.Context
-	client     *storage.Client
-	bucket     *storage.BucketHandle
+	ctx    context.Context
+	client *storage.Client
+	bucket *storage.BucketHandle
 }
 
 var (
 	mailingListURL string
-	projectID string
-	bucketName string
-	gcs = GCS{}
+	projectID      string
+	bucketName     string
+	gcs            = GCS{}
 )
 
 func connectCTX() (context.Context, context.CancelFunc) {
 	ctx := context.Background()
-	return context.WithTimeout(ctx, time.Second*10)
+	return context.WithTimeout(ctx, time.Second*100)
 }
 
 func (gcs *GCS) connectGCS() error {
@@ -90,7 +90,7 @@ func (gcs *GCS) createGCSBucket() error {
 	}
 }
 
-func (gcs *GCS) storeGCS(fileName string, url string)  {
+func (gcs *GCS) storeGCS(fileName string, url string) {
 	// Get HTTP response
 	response, _ := http.Get(url)
 	defer response.Body.Close()
@@ -104,7 +104,6 @@ func (gcs *GCS) storeGCS(fileName string, url string)  {
 		// Copy file into GCS
 		_, err := io.Copy(w, response.Body)
 		if err != nil {
-			// TODO simply log failed to copy and store what is missing and keep going
 			log.Printf("Failed to copy doc to bucket: %v", err)
 		}
 		response.Body.Close()
@@ -117,21 +116,25 @@ func (gcs *GCS) storeGCS(fileName string, url string)  {
 }
 
 func getMailingListData() {
-	dom, _ := goquery.NewDocument(mailingListURL)
-	dom.Find("tr").Find("td").Find("a").Each(func(i int, s *goquery.Selection) {
-		band, ok := s.Attr("href")
-		if ok {
-			check := strings.Split(band, ".")
-			len := len(check) - 1
-			if check[len] == "gz" {
-				if strings.Split(band, ":")[0] != "https" {
-					path := mailingListURL + band
-					//log.Printf("Relative path to store is: %s\n", path)
-					gcs.storeGCS(band, path)
+	response, _ := http.Get(mailingListURL)
+	defer response.Body.Close()
+
+	if response.StatusCode == http.StatusOK {
+		dom, _ := goquery.NewDocumentFromReader(response.Body)
+		dom.Find("tr").Find("td").Find("a").Each(func(i int, s *goquery.Selection) {
+			band, ok := s.Attr("href")
+			if ok {
+				check := strings.Split(band, ".")
+				len := len(check) - 1
+				if check[len] == "gz" {
+					if strings.Split(band, ":")[0] != "https" {
+						path := mailingListURL + band
+						gcs.storeGCS(band, path)
 					}
 				}
 			}
-	})
+		})
+	}
 }
 
 // TODO create func to create map of what is in bucket and then compare to what is pulled from site so only pull new files
