@@ -30,7 +30,6 @@ import (
 	"log"
 	"net/http"
 	"strings"
-	"time"
 )
 
 type GCS struct {
@@ -48,7 +47,7 @@ var (
 
 func connectCTX() (context.Context, context.CancelFunc) {
 	ctx := context.Background()
-	return context.WithTimeout(ctx, time.Second*100)
+	return context.WithCancel(ctx)
 }
 
 func (gcs *GCS) connectGCS() error {
@@ -104,7 +103,7 @@ func (gcs *GCS) storeGCS(fileName string, url string) {
 		// Copy file into GCS
 		_, err := io.Copy(w, response.Body)
 		if err != nil {
-			log.Printf("Failed to copy doc to bucket: %v", err)
+			log.Printf("Failed to copy %v to bucket: %v", fileName, err)
 		}
 		response.Body.Close()
 
