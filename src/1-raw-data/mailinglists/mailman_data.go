@@ -24,7 +24,7 @@ import (
 	"time"
 )
 
-func createMMURL(filename string, startDate string, endDate string) string {
+func createMMURL(filename, startDate, endDate string) string {
 	url := *mailingListURL + "export/python-dev@python.org-" + filename + "?start=" + startDate + "&end=" + endDate
 	return url
 }
@@ -42,7 +42,7 @@ func createMMFileName(currentStart string) string {
 	return strings.Join(yr_mt, "-") + ".mbox.gz"
 }
 
-func setDates(startDate string, endDate string) (string, string) {
+func setDates(startDate, endDate string) (string, string) {
 	if startDate == "" {
 		startDate = time.Now().Format("2006-01-02")
 	}
@@ -61,9 +61,17 @@ func setDates(startDate string, endDate string) (string, string) {
 	return startDate, endDate
 }
 
-func cycleDates(start string, end string) (string, string) {
+func cycleDates(start, end time.Time) (string, string) {
+	if start.Month()
+	if start.AddDate(0, 0, -30){}
 	return "", ""
 }
+
+//func monthInterval(y int, m time.Month) (firstDay, lastDay time.Time) {
+//	firstDay = time.Date(y, m, 1, 0, 0, 0, 0, time.UTC)
+//	lastDay = time.Date(y, m+1, 1, 0, 0, 0, -1, time.UTC)
+//	return firstDay, lastDay
+//}
 
 func mailManMain() {
 	// TODO cycle through dates if they are more than a month apart

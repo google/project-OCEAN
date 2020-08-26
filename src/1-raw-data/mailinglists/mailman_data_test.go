@@ -85,5 +85,28 @@ func TestSetDates(t *testing.T) {
 		}
 		fmt.Printf("%v : setDates result matches.", test.comparisonType)
 	}
+}
 
+func TestCycleDates(t *testing.T) {
+	tests := []struct {
+		comparisonType string
+		start          string
+		end            string
+		expStart       string
+		expEnd         string
+	}{
+		{"One month", "1915-09-01", "1915-09-30", "1915-09-01", "1915-09-30"},
+		{"Start is not the 1st and end date more than a month away", "1865-06-17", "1915-09-18", "1865-06-17", "1865-06-30"},
+		{"Start is the 1st and end date more than a month away", "1865-07-01", "1915-09-18", "1865-07-01", "1865-07-31"},
+	}
+	for _, test := range tests {
+		actualStart, actualEnd := cycleDates(test.start, test.end)
+		if strings.Compare(test.expStart, actualStart) != 0 {
+			t.Errorf("CycleDates response does not match.\n got: %v\nexpected: %v", actualStart, test.expStart)
+		}
+		if strings.Compare(test.expEnd, actualEnd) != 0 {
+			t.Errorf("CycleDates response does not match.\n got: %v\nexpected: %v", actualEnd, test.expEnd)
+		}
+		fmt.Printf("%v : cycleDates result matches.", test.comparisonType)
+	}
 }
