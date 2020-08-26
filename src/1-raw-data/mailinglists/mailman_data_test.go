@@ -21,69 +21,68 @@ import (
 	"time"
 )
 
-func TestCreateMailManURL(t *testing.T) {
-	*mailingListURL = "https://en.wikipedia.org/wiki/Susan_La_Flesche_Picotte"
-	filename := "susan_la_flesche_picotte.mbox.gz"
-	startDate := "1865-06-17"
-	endDate := "1915-09-18"
-	expected := *mailingListURL + "export/python-dev@python.org-" + filename + "?start=" + startDate + "&end=" + endDate
-
-	actual := createMMURL(filename, startDate, endDate)
-
-	if strings.Compare(expected, actual) != 0 {
-		t.Errorf("CreateMMURL response does not match.\n got: %v\nexpected: %v", actual, expected)
-	}
-	fmt.Println("CreateMMURL results match")
-}
-
-func TestConvertDateTime(t *testing.T) {
-	date := "1865-06-17"
-	expected, _ := time.Parse("1865-06-17", date)
-	actual := convert2DateTime(date)
-
-	if expected == actual {
-		t.Errorf("ConvertDateTime response does not match.\n got: %v\nexpected: %v", actual, expected)
-	}
-	fmt.Println("ConvertDateTime results match")
-}
-
-func TestCreateMMFileName(t *testing.T) {
-	date := "1865-06-17"
-	expected := "1865-06.mbox.gz"
-	actual := createMMFileName(date)
-	if strings.Compare(expected, actual) != 0 {
-		t.Errorf("CreateMMFileName response does not match.\n got: %v\nexpected: %v", actual, expected)
-	}
-	fmt.Println("CreateMMFileName results match")
-
-}
-
 func TestSetDates(t *testing.T) {
 	// test passing in empty start, empty date, same date, start older than end, not a string
 	today := time.Now().Format("2006-01-02")
 	yesterday := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
+	olderStartDateErrorExample := fmt.Errorf("Start date %v was past end date %v. Update input with different start date.", today, "1915-09-18")
 	tests := []struct {
 		comparisonType string
 		start          string
 		end            string
-		expStart       string
-		expEnd         string
+		wantStart      string
+		wantEnd        string
+		err            error
 	}{
-		{"Dates empty", "", "", yesterday, today},
-		{"Start date empty", "", "1915-09-18", "1915-09-17", "1915-09-18"},
-		{"End date empty", "1865-06-17", "", "1865-06-17", today},
-		{"Start and end dates provided and correct", "1865-06-17", "1915-09-17", "1865-06-17", "1915-09-17"},
+		{"Dates empty", "", "", yesterday, today, nil},
+		{"Start date empty", "", "1915-09-18", yesterday, "1915-09-18", olderStartDateErrorExample},
+		{"End date empty", "1865-06-17", "", "1865-06-17", today, nil},
+		{"Start and end dates provided and correct", "1865-06-17", "1915-09-17", "1865-06-17", "1915-09-17", nil},
 	}
-
 	for _, test := range tests {
-		actualStart, actualEnd := setDates(test.start, test.end)
-		if strings.Compare(test.expStart, actualStart) != 0 {
-			t.Errorf("SetDates response does not match.\n got: %v\nexpected: %v", actualStart, test.expStart)
+		if gotStart, gotEnd, err := setDates(test.start, test.end); err == test.err {
+			if strings.Compare(gotStart, test.wantStart) != 0 {
+				t.Errorf("SetDates response does not match for %v.\n got: %v\nwant: %v", test.comparisonType, gotStart, test.wantStart)
+			}
+			if strings.Compare(gotEnd, test.wantEnd) != 0 {
+				t.Errorf("SetDates response does not match for %v.\n got: %v\nwant: %v", test.comparisonType, gotEnd, test.wantEnd)
+			}
+		} else if err.Error() != test.err.Error() {
+			t.Errorf("Expected error mismatch for %v.\n got: %v\nwant: %v", test.comparisonType, err, test.err)
 		}
-		if strings.Compare(test.expEnd, actualEnd) != 0 {
-			t.Errorf("SetDates response does not match.\n got: %v\nexpected: %v", actualEnd, test.expEnd)
-		}
-		fmt.Printf("%v : setDates result matches.", test.comparisonType)
 	}
+}
 
+func TestCreateMailmanFilename(t *testing.T) {
+	tests := []struct {
+		date string
+		want string
+	}{
+		{"1865-06-17", "1865-06.mbox.gz"},
+	}
+	for _, test := range tests {
+		got := createMailmanFilename(test.date)
+		if strings.Compare(got, test.want) != 0 {
+			t.Errorf("CreateMMFileName response does not match.\n got: %v\nwant: %v", got, test.want)
+		}
+	}
+}
+
+func TestCreateMailManURL(t *testing.T) {
+	tests := []struct {
+		url       string
+		filename  string
+		startDate string
+		endDate   string
+	}{
+		{"https://en.wikipedia.org/wiki/Susan_La_Flesche_Picotte", "susan_la_flesche_picotte.mbox.gz", "1865-06-17", "1915-09-18"},
+	}
+	for _, test := range tests {
+		*mailingListURL = test.url // Set global variable that is used
+		want := fmt.Sprintf("%vexport/python-dev@python.org-%v?start=%v&end=%v", test.url, test.filename, test.startDate, test.endDate)
+		got := createMailmanURL(test.filename, test.startDate, test.endDate)
+		if strings.Compare(got, want) != 0 {
+			t.Errorf("CreateMMURL response does not match.\n got: %v\nwant: %v", got, want)
+		}
+	}
 }

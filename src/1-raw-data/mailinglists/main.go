@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/*
+This package is for loading different mailing list data types into Cloud Storage.
+*/
+
 package main
 
 //TODO
@@ -28,7 +32,7 @@ import (
 	"net/http"
 )
 
-type GCS struct {
+type storageConnection struct {
 	ctx    context.Context
 	client *storage.Client
 	bucket *storage.BucketHandle
@@ -41,15 +45,15 @@ var (
 	mailingListURL = flag.String( "mailinglist-url", "", "mailing list url to pull files from")
 	startDate 	   = flag.String("start-date", "", "Start date in format of year-month-date and 4dig-2dig-2dig")
 	endDate	       = flag.String( "end-date", "", "End date in format of year-month-date and 4dig-2dig-2dig")
-	gcs            = GCS{}
+	gcs            = storageConnection{}
 )
 
-func (gcs *GCS) connectCTX() (context.Context, context.CancelFunc) {
+func (gcs *storageConnection) connectCTX() (context.Context, context.CancelFunc) {
 	ctx := context.Background()
 	return context.WithCancel(ctx)
 }
 
-func (gcs *GCS) connectGCS() error {
+func (gcs *storageConnection) connectGCSClient() error {
 	if client, err := storage.NewClient(gcs.ctx); err != nil {
 		return fmt.Errorf("Failed to create client: %v", err)
 	} else {
@@ -58,7 +62,8 @@ func (gcs *GCS) connectGCS() error {
 	}
 }
 
-func (gcs *GCS) createGCSBucket() error {
+// Creates storage bucket if it doesn't exist.
+func (gcs *storageConnection) createGCSBucket() error {
 	// Setup client bucket to work from
 	gcs.bucket = gcs.client.Bucket(*bucketName)
 
@@ -88,7 +93,8 @@ func (gcs *GCS) createGCSBucket() error {
 	}
 }
 
-func (gcs *GCS) storeGCS(fileName string, url string) {
+// Store files in storage.
+func (gcs *storageConnection) storeGCS(fileName string, url string) {
 	// Get HTTP response
 	response, _ := http.Get(url)
 	defer response.Body.Close()
@@ -99,14 +105,13 @@ func (gcs *GCS) storeGCS(fileName string, url string) {
 		// w implements io.Writer.
 		w := obj.NewWriter(gcs.ctx)
 
-		// Copy file into GCS
+		// Copy file into storage
 		_, err := io.Copy(w, response.Body)
 		if err != nil {
 			log.Printf("Failed to copy %v to bucket: %v", fileName, err)
 		}
 		response.Body.Close()
 
-		// Close, just like writing a file.
 		if err := w.Close(); err != nil {
 			log.Fatalf("Failed to close: %v", err)
 		}
@@ -120,7 +125,7 @@ func main() {
 	defer cancel()
 	gcs.ctx = ctx
 
-	if err := gcs.connectGCS(); err != nil {
+	if err := gcs.connectGCSClient(); err != nil {
 		log.Fatalf("Connect GCS failes: %v", err)
 	}
 
@@ -130,9 +135,9 @@ func main() {
 
 	switch *mailingList {
 	case "piper":
-		piperMailMain()
+		pipermailMain()
 	case "mailman":
-		mailManMain()
+		mailmanMain()
 	default:
 		log.Fatalf("Mailing list %v is not an option. Change the option submitted.: ", mailingList)
 	}

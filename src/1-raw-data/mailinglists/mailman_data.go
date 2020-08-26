@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/*
+Access and load Mailman data.
+*/
+
 package main
 
 //TODO
@@ -19,58 +23,63 @@ package main
 // Run this monthly at start of new month to pull all new data
 
 import (
-	"log"
+	"fmt"
 	"strings"
 	"time"
 )
 
-func createMMURL(filename string, startDate string, endDate string) string {
-	url := *mailingListURL + "export/python-dev@python.org-" + filename + "?start=" + startDate + "&end=" + endDate
-	return url
-}
+// Check dates used in the Mailman filename have value, are not the same and that start before end.
+func setDates(startDate, endDate string) (string, string, error) {
+	var startDateTime, endDateTime time.Time
+	var err error
 
-func convert2DateTime(date string) time.Time {
-	myDate, err := time.Parse("2006-01-02", date)
-	if err != nil {
-		panic(err)
-	}
-	return myDate
-}
-
-func createMMFileName(currentStart string) string {
-	yr_mt := strings.Split(currentStart, "-")[0:2]
-	return strings.Join(yr_mt, "-") + ".mbox.gz"
-}
-
-func setDates(startDate string, endDate string) (string, string) {
 	if startDate == "" {
 		startDate = time.Now().Format("2006-01-02")
 	}
 	if endDate == "" {
 		endDate = time.Now().Format("2006-01-02")
 	}
+	if startDateTime, err = time.Parse("2006-01-02", startDate); err != nil {
+		return startDate, endDate, fmt.Errorf("Date string conversion to DateTime threw an error: %v", err)
+	}
+	if endDateTime, err = time.Parse("2006-01-02", endDate); err != nil {
+		return startDate, endDate, fmt.Errorf("Date string conversion to DateTime threw an error: %v", err)
+	}
 	if startDate == endDate {
-		startDateT := convert2DateTime(startDate)
-		startDate = startDateT.AddDate(0, 0, -1).Format("2006-01-02")
+		startDateTime = startDateTime.AddDate(0, 0, -1)
+		startDate = startDateTime.Format("2006-01-02")
 	}
-	if convert2DateTime(startDate).After(convert2DateTime(endDate)) {
-		orgStartDate := startDate
-		startDate = convert2DateTime(endDate).AddDate(0, 0, -1).Format("2006-01-02")
-		log.Printf("Start date %v was past end date %v. It was changed to %v which is 1 day less than end date. Update input if a different start date is expected.\n", orgStartDate, startDate, endDate)
+	if startDateTime.After(endDateTime) {
+		return startDate, endDate, fmt.Errorf("Start date %v was past end date %v. Update input with different start date.", startDate, endDate)
 	}
-	return startDate, endDate
+	return startDate, endDate, nil
 }
 
-func cycleDates(start string, end string) (string, string) {
+func createMailmanFilename(currentStart string) string {
+	yearMonth := strings.Split(currentStart, "-")[0:2]
+	return strings.Join(yearMonth, "-") + ".mbox.gz"
+}
+
+// Create URL needed for Mailman with specific dates and filename for output.
+func createMailmanURL(filename, startDate, endDate string) string {
+	return fmt.Sprintf("%vexport/python-dev@python.org-%v?start=%v&end=%v", *mailingListURL, filename, startDate, endDate)
+}
+
+func cycleDates(startDate, endDate string) (string, string) {
 	return "", ""
 }
 
-func mailManMain() {
+func mailmanMain() error {
 	// TODO cycle through dates if they are more than a month apart
-	setDates(*startDate, *endDate)
-	//if convertDateTime(endDate).Add(-convertDateTime(startDate)) > 30
+	if start, end, err := setDates(*startDate, *endDate); err != nil {
+		return err
+	} else {
+		fmt.Println(start, end)
+	}
 
-	filename := createMMFileName(*startDate)
-	url := createMMURL(filename, *startDate, *endDate)
+	//if convertDateTime(endDate).Add(-convertDateTime(startDate)) > 30
+	filename := createMailmanFilename(*startDate)
+	url := createMailmanURL(filename, *startDate, *endDate)
 	gcs.storeGCS(filename, url)
+	return nil
 }
