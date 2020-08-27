@@ -16,13 +16,14 @@
 Access and load Mailman data.
 */
 
-package main
+package mailman
 
 //TODO
 // Add cycle to pull data by month if the start and end are multiple months
 // Run this monthly at start of new month to pull all new data
 
 import (
+	"1-raw-data/gcs"
 	"fmt"
 	"strings"
 	"time"
@@ -61,25 +62,32 @@ func createMailmanFilename(currentStart string) string {
 }
 
 // Create URL needed for Mailman with specific dates and filename for output.
-func createMailmanURL(filename, startDate, endDate string) string {
-	return fmt.Sprintf("%vexport/python-dev@python.org-%v?start=%v&end=%v", *mailingListURL, filename, startDate, endDate)
+func createMailmanURL(mailingListURL, filename, startDate, endDate string) string {
+	return fmt.Sprintf("%vexport/python-dev@python.org-%v?start=%v&end=%v", mailingListURL, filename, startDate, endDate)
 }
 
 func cycleDates(startDate, endDate string) (string, string) {
 	return "", ""
 }
 
-func mailmanMain() error {
+// Get, parse and store mailman data in GCS.
+func GetMailmanData(gcs gcs.StorageConnection, mailingListURL, startDate, endDate string) error {
 	// TODO cycle through dates if they are more than a month apart
-	if start, end, err := setDates(*startDate, *endDate); err != nil {
+	if start, end, err := setDates(startDate, endDate); err != nil {
 		return err
 	} else {
 		fmt.Println(start, end)
 	}
 
 	//if convertDateTime(endDate).Add(-convertDateTime(startDate)) > 30
-	filename := createMailmanFilename(*startDate)
-	url := createMailmanURL(filename, *startDate, *endDate)
-	gcs.storeGCS(filename, url)
+	filename := createMailmanFilename(startDate)
+	url := createMailmanURL(mailingListURL, filename, startDate, endDate)
+
+	if err := gcs.StoreGCS(filename, url); err != nil {
+		return fmt.Errorf("Storage failed: %v", err)
+	}
 	return nil
+}
+
+func main() {
 }

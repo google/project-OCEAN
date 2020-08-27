@@ -18,128 +18,54 @@ This package is for loading different mailing list data types into Cloud Storage
 
 package main
 
-//TODO
-// Check the most recent file stored and pull only what isn't there
-
 import (
-	"cloud.google.com/go/storage"
+	"1-raw-data/gcs"
+	"1-raw-data/mailinglists/mailman"
+	"1-raw-data/mailinglists/pipermail"
 	"context"
 	"flag"
-	"fmt"
-	"google.golang.org/api/iterator"
-	"io"
 	"log"
-	"net/http"
 )
-
-type storageConnection struct {
-	ctx    context.Context
-	client *storage.Client
-	bucket *storage.BucketHandle
-}
 
 var (
 	projectID      = flag.String("project-id", "", "project id")
 	bucketName     = flag.String("bucket-name", "", "bucket name to store files")
-	mailingList	   = flag.String("mailinglist", "piper", "Choose which mailing list to process either piper (default), mailman")
-	mailingListURL = flag.String( "mailinglist-url", "", "mailing list url to pull files from")
-	startDate 	   = flag.String("start-date", "", "Start date in format of year-month-date and 4dig-2dig-2dig")
-	endDate	       = flag.String( "end-date", "", "End date in format of year-month-date and 4dig-2dig-2dig")
-	gcs            = storageConnection{}
+	mailingList    = flag.String("mailinglist", "piper", "Choose which mailing list to process either piper (default), mailman")
+	mailingListURL = flag.String("mailinglist-url", "", "mailing list url to pull files from")
+	startDate      = flag.String("start-date", "", "Start date in format of year-month-date and 4dig-2dig-2dig")
+	endDate        = flag.String("end-date", "", "End date in format of year-month-date and 4dig-2dig-2dig")
 )
-
-func (gcs *storageConnection) connectCTX() (context.Context, context.CancelFunc) {
-	ctx := context.Background()
-	return context.WithCancel(ctx)
-}
-
-func (gcs *storageConnection) connectGCSClient() error {
-	if client, err := storage.NewClient(gcs.ctx); err != nil {
-		return fmt.Errorf("Failed to create client: %v", err)
-	} else {
-		gcs.client = client
-		return nil
-	}
-}
-
-// Creates storage bucket if it doesn't exist.
-func (gcs *storageConnection) createGCSBucket() error {
-	// Setup client bucket to work from
-	gcs.bucket = gcs.client.Bucket(*bucketName)
-
-	buckets := gcs.client.Buckets(gcs.ctx, *projectID)
-	for {
-		attrs, err := buckets.Next()
-		// Assume that if Iterator end then not found and need to create bucket
-		if err == iterator.Done {
-			// Create bucket if it doesn't exist - https://cloud.google.com/storage/docs/reference/libraries
-			if err := gcs.bucket.Create(gcs.ctx, *projectID, &storage.BucketAttrs{
-				Location: "US",
-			}); err != nil {
-				// TODO - add random number to append to bucket name to resolve
-				return fmt.Errorf("Failed to create bucket: %v", err)
-			}
-			log.Printf("Bucket %v created.\n", *bucketName)
-			return nil
-		}
-		if err != nil {
-			return fmt.Errorf("Issues setting up Bucket(%q).Objects(): %v. Double check project id.", attrs.Name, err)
-		}
-		if attrs.Name == *bucketName {
-			//getLatestFile() // TODO set this up to check and compare what is in the bucket vs what isn't
-			log.Printf("Bucket %v exists.\n", bucketName)
-			return nil
-		}
-	}
-}
-
-// Store files in storage.
-func (gcs *storageConnection) storeGCS(fileName string, url string) {
-	// Get HTTP response
-	response, _ := http.Get(url)
-	defer response.Body.Close()
-
-	if response.StatusCode == http.StatusOK {
-		obj := gcs.bucket.Object(fileName)
-
-		// w implements io.Writer.
-		w := obj.NewWriter(gcs.ctx)
-
-		// Copy file into storage
-		_, err := io.Copy(w, response.Body)
-		if err != nil {
-			log.Printf("Failed to copy %v to bucket: %v", fileName, err)
-		}
-		response.Body.Close()
-
-		if err := w.Close(); err != nil {
-			log.Fatalf("Failed to close: %v", err)
-		}
-	}
-}
 
 func main() {
 	flag.Parse()
 
-	ctx, cancel := gcs.connectCTX()
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	gcs.ctx = ctx
 
-	if err := gcs.connectGCSClient(); err != nil {
+	gcs := gcs.StorageConnection{
+		BucketName: *bucketName,
+		ProjectID:  *projectID,
+	}
+	gcs.Ctx = ctx
+
+	if err := gcs.ConnectGCSClient(); err != nil {
 		log.Fatalf("Connect GCS failes: %v", err)
 	}
 
-	if err := gcs.createGCSBucket(); err != nil {
+	if err := gcs.CreateGCSBucket(); err != nil {
 		log.Fatalf("Create GCS Bucket failed: %v", err)
 	}
 
 	switch *mailingList {
 	case "piper":
-		pipermailMain()
+		if err := pipermail.GetMailingListData(gcs, *mailingListURL); err != nil {
+			log.Fatalf("Mailman load failed: %v", err)
+		}
 	case "mailman":
-		mailmanMain()
+		if err := mailman.GetMailmanData(gcs, *mailingListURL, *startDate, *endDate); err != nil {
+			log.Fatalf("Mailman load failed: %v", err)
+		}
 	default:
 		log.Fatalf("Mailing list %v is not an option. Change the option submitted.: ", mailingList)
 	}
 }
-

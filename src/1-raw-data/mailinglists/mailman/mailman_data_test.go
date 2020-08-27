@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package mailman
 
 import (
 	"fmt"
@@ -34,22 +34,48 @@ func TestSetDates(t *testing.T) {
 		wantEnd        string
 		err            error
 	}{
-		{"Dates empty", "", "", yesterday, today, nil},
-		{"Start date empty", "", "1915-09-18", yesterday, "1915-09-18", olderStartDateErrorExample},
-		{"End date empty", "1865-06-17", "", "1865-06-17", today, nil},
-		{"Start and end dates provided and correct", "1865-06-17", "1915-09-17", "1865-06-17", "1915-09-17", nil},
+		{
+			comparisonType: "Dates empty",
+			wantStart:      yesterday,
+			wantEnd:        today,
+			err:            nil,
+		},
+		{
+			comparisonType: "Start date empty",
+			end:            "1915-09-18",
+			wantStart:      yesterday,
+			wantEnd:        "1915-09-18",
+			err:            olderStartDateErrorExample,
+		},
+		{
+			comparisonType: "End date empty",
+			start:          "1865-06-17",
+			wantStart:      "1865-06-17",
+			wantEnd:        today,
+			err:            nil,
+		},
+		{
+			comparisonType: "Start and end dates provided and correct",
+			start:          "1865-06-17",
+			end:            "1915-09-17",
+			wantStart:      "1865-06-17",
+			wantEnd:        "1915-09-17",
+			err:            nil,
+		},
 	}
 	for _, test := range tests {
-		if gotStart, gotEnd, err := setDates(test.start, test.end); err == test.err {
-			if strings.Compare(gotStart, test.wantStart) != 0 {
-				t.Errorf("SetDates response does not match for %v.\n got: %v\nwant: %v", test.comparisonType, gotStart, test.wantStart)
+		t.Run(test.comparisonType, func(t *testing.T) {
+			if gotStart, gotEnd, err := setDates(test.start, test.end); err == test.err {
+				if strings.Compare(gotStart, test.wantStart) != 0 {
+					t.Errorf("SetDates response does not match for %v.\n got: %v\nwant: %v", test.comparisonType, gotStart, test.wantStart)
+				}
+				if strings.Compare(gotEnd, test.wantEnd) != 0 {
+					t.Errorf("SetDates response does not match for %v.\n got: %v\nwant: %v", test.comparisonType, gotEnd, test.wantEnd)
+				}
+			} else if err.Error() != test.err.Error() {
+				t.Errorf("Expected error mismatch for %v.\n got: %v\nwant: %v", test.comparisonType, err, test.err)
 			}
-			if strings.Compare(gotEnd, test.wantEnd) != 0 {
-				t.Errorf("SetDates response does not match for %v.\n got: %v\nwant: %v", test.comparisonType, gotEnd, test.wantEnd)
-			}
-		} else if err.Error() != test.err.Error() {
-			t.Errorf("Expected error mismatch for %v.\n got: %v\nwant: %v", test.comparisonType, err, test.err)
-		}
+		})
 	}
 }
 
@@ -58,7 +84,10 @@ func TestCreateMailmanFilename(t *testing.T) {
 		date string
 		want string
 	}{
-		{"1865-06-17", "1865-06.mbox.gz"},
+		{
+			date: "1865-06-17",
+			want: "1865-06.mbox.gz",
+		},
 	}
 	for _, test := range tests {
 		got := createMailmanFilename(test.date)
@@ -75,12 +104,17 @@ func TestCreateMailManURL(t *testing.T) {
 		startDate string
 		endDate   string
 	}{
-		{"https://en.wikipedia.org/wiki/Susan_La_Flesche_Picotte", "susan_la_flesche_picotte.mbox.gz", "1865-06-17", "1915-09-18"},
+		{
+			url:       "https://en.wikipedia.org/wiki/Susan_La_Flesche_Picotte",
+			filename:  "susan_la_flesche_picotte.mbox.gz",
+			startDate: "1865-06-17",
+			endDate:   "1915-09-18",
+		},
 	}
 	for _, test := range tests {
-		*mailingListURL = test.url // Set global variable that is used
+
 		want := fmt.Sprintf("%vexport/python-dev@python.org-%v?start=%v&end=%v", test.url, test.filename, test.startDate, test.endDate)
-		got := createMailmanURL(test.filename, test.startDate, test.endDate)
+		got := createMailmanURL(test.url, test.filename, test.startDate, test.endDate)
 		if strings.Compare(got, want) != 0 {
 			t.Errorf("CreateMMURL response does not match.\n got: %v\nwant: %v", got, want)
 		}
