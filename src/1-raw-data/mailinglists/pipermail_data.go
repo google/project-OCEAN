@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/*
+Access and load Pipermail data.
+*/
+
 package main
 
 //TODO
@@ -25,6 +29,7 @@ import (
 	"strings"
 )
 
+// Get, parse and store Pipermail data.
 func getMailingListData() {
 	url := *mailingListURL
 	response, _ := http.Get(url)
@@ -70,6 +75,6 @@ func getMailingListData() {
 //	}
 //}
 
-func piperMailMain() {
+func pipermailMain() {
 	getMailingListData()
 }
