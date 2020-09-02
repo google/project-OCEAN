@@ -32,15 +32,14 @@ import (
 )
 
 type StorageConnection struct {
-	Ctx        context.Context
 	ProjectID  string
 	BucketName string
 	client     *storage.Client
 	bucket     *storage.BucketHandle
 }
 
-func (gcs *StorageConnection) ConnectGCSClient() error {
-	if client, err := storage.NewClient(gcs.Ctx); err != nil {
+func (gcs *StorageConnection) ConnectGCSClient(ctx context.Context) error {
+	if client, err := storage.NewClient(ctx); err != nil {
 		return fmt.Errorf("Failed to create client: %v", err)
 	} else {
 		gcs.client = client
@@ -49,17 +48,17 @@ func (gcs *StorageConnection) ConnectGCSClient() error {
 }
 
 // Creates storage bucket if it doesn't exist.
-func (gcs *StorageConnection) CreateGCSBucket() error {
+func (gcs *StorageConnection) CreateGCSBucket(ctx context.Context) error {
 	// Setup client bucket to work from
 	gcs.bucket = gcs.client.Bucket(gcs.BucketName)
 
-	buckets := gcs.client.Buckets(gcs.Ctx, gcs.ProjectID)
+	buckets := gcs.client.Buckets(ctx, gcs.ProjectID)
 	for {
 		attrs, err := buckets.Next()
 		// Assume that if Iterator end then not found and need to create bucket
 		if err == iterator.Done {
 			// Create bucket if it doesn't exist - https://cloud.google.com/storage/docs/reference/libraries
-			if err := gcs.bucket.Create(gcs.Ctx, gcs.ProjectID, &storage.BucketAttrs{
+			if err := gcs.bucket.Create(ctx, gcs.ProjectID, &storage.BucketAttrs{
 				Location: "US",
 			}); err != nil {
 				// TODO - add random number to append to bucket name to resolve
@@ -80,7 +79,7 @@ func (gcs *StorageConnection) CreateGCSBucket() error {
 }
 
 // Store files in storage.
-func (gcs *StorageConnection) StoreGCS(fileName, url string) error {
+func (gcs *StorageConnection) StoreGCS(ctx context.Context, fileName, url string) error {
 	// Get HTTP response
 	response, err := http.Get(url)
 	if err != nil {
@@ -92,7 +91,7 @@ func (gcs *StorageConnection) StoreGCS(fileName, url string) error {
 		obj := gcs.bucket.Object(fileName)
 
 		// w implements io.Writer.
-		w := obj.NewWriter(gcs.Ctx)
+		w := obj.NewWriter(ctx)
 
 		// Copy file into storage
 		_, err := io.Copy(w, response.Body)
@@ -112,13 +111,12 @@ func main() {
 	defer cancel()
 
 	gcs := StorageConnection{}
-	gcs.Ctx = ctx
 
-	if err := gcs.ConnectGCSClient(); err != nil {
+	if err := gcs.ConnectGCSClient(ctx); err != nil {
 		log.Fatalf("Connect GCS failes: %v", err)
 	}
 
-	if err := gcs.CreateGCSBucket(); err != nil {
+	if err := gcs.CreateGCSBucket(ctx); err != nil {
 		log.Fatalf("Create GCS Bucket failed: %v", err)
 	}
 }

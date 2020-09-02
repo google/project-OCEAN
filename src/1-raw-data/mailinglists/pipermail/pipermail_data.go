@@ -25,6 +25,7 @@ package pipermail
 
 import (
 	"1-raw-data/gcs"
+	"context"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
 	"log"
@@ -33,9 +34,8 @@ import (
 )
 
 // Get, parse and store Pipermail data in GCS.
-func GetMailingListData(storage gcs.StorageConnection, mailingListURL string) error {
-	url := mailingListURL
-	response, err := http.Get(url)
+func GetPipermailData(ctx context.Context, storage gcs.StorageConnection, mailingListURL string) error {
+	response, err := http.Get(mailingListURL)
 	if err != nil {
 		return fmt.Errorf("HTTP response returned an error: %v", err)
 	}
@@ -51,7 +51,8 @@ func GetMailingListData(storage gcs.StorageConnection, mailingListURL string) er
 				if check[len] == "gz" {
 					if strings.Split(band, ":")[0] != "https" {
 						path := fmt.Sprintf("%v%v", mailingListURL, band)
-						if err := storage.StoreGCS(band, path); err != nil {
+						if err := storage.StoreGCS(ctx, band, path); err != nil {
+							// Each func interface doesn't allow passing errors?
 							log.Fatalf("Storage failed: %v", err)
 						}
 					}
