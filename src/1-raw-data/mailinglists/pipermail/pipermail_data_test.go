@@ -67,7 +67,7 @@ func TestGetPipermailData(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.comparisonType, func(t *testing.T) {
 			if gotErr := GetPipermailData(ctx, test.gcs, test.mailingListURL); gotErr != nil {
-				if gotErr == nil ||!strings.Contains(gotErr.Error(), test.wantErr.Error()) {
+				if gotErr == nil || !strings.Contains(gotErr.Error(), test.wantErr.Error()) {
 					t.Errorf("GetPipermailData response does not match.\n got: %v\nwant: %v", gotErr, test.wantErr)
 				}
 			}

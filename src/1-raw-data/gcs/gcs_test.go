@@ -158,7 +158,7 @@ func TestCreateGCSBucket(t *testing.T) {
 		comparisonType string
 		bucketName     string
 		gcs            *StorageConnection
-		projectID string
+		projectID      string
 		wantErr        error
 	}{
 		// Test create bucket
@@ -166,7 +166,7 @@ func TestCreateGCSBucket(t *testing.T) {
 			comparisonType: "Test Create is called",
 			gcs:            storage,
 			bucketName:     "Environmentalist",
-			projectID:     "Environmentalist",
+			projectID:      "Environmentalist",
 			wantErr:        nil,
 		},
 		// Test empty bucket name
@@ -174,7 +174,7 @@ func TestCreateGCSBucket(t *testing.T) {
 			comparisonType: "Test Create is not called",
 			gcs:            storage,
 			bucketName:     "Environmentalist",
-			projectID:     "Economist",
+			projectID:      "Economist",
 			wantErr:        nil,
 		},
 		// Test empty bucket name
@@ -182,7 +182,7 @@ func TestCreateGCSBucket(t *testing.T) {
 			comparisonType: "Test not nil error",
 			gcs:            storage,
 			bucketName:     "",
-			projectID:     "",
+			projectID:      "",
 			wantErr:        fmt.Errorf("empty"),
 		},
 	}
