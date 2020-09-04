@@ -15,10 +15,12 @@
 package gcs
 
 import (
+	"bytes"
 	"cloud.google.com/go/storage"
 	"context"
 	"fmt"
 	"github.com/googleapis/google-cloud-go-testing/storage/stiface"
+	"google.golang.org/api/iterator"
 	"strings"
 	"testing"
 )
@@ -28,86 +30,179 @@ type fakeClient struct {
 	buckets map[string]*fakeBucket
 }
 
-type fakeBucket struct {
-	attrs   *storage.BucketAttrs
-	objects map[string][]byte
-}
-
-func newFakeClient() stiface.Client {
-	return &fakeClient{buckets: map[string]*fakeBucket{}}
-}
-
-func (c *fakeClient) Bucket(name string) stiface.BucketHandle {
-	return fakeBucketHandle{c: c, name: name}
-}
-
 type fakeBucketHandle struct {
 	stiface.BucketHandle
 	c    *fakeClient
 	name string
 }
 
-func setupGCS(t *testing.T) *StorageConnection {
-	ctx := context.Background()
-	bucketName := "susan"
+type fakeBucket struct {
+	attrs   *storage.BucketAttrs
+	objects map[string][]byte
+}
 
-	c, err := storage.NewClient(ctx)
-	if err != nil {
-		t.Errorf("Failed to simulate client: %v", err)
+type fakeBucketIterator struct {
+	stiface.BucketIterator
+	i    int
+	next []storage.BucketAttrs
+}
+
+type fakeObjectHandle struct {
+	stiface.ObjectHandle
+	c          *fakeClient
+	bucketName string
+	name       string
+}
+
+func newFakeClient() stiface.Client {
+	return &fakeClient{buckets: map[string]*fakeBucket{}}
+}
+
+func (b fakeBucketHandle) Object(name string) stiface.ObjectHandle {
+	return fakeObjectHandle{c: b.c, bucketName: b.name, name: name}
+}
+
+func (c *fakeClient) Bucket(name string) stiface.BucketHandle {
+	return &fakeBucketHandle{c: c, name: name}
+}
+
+type fakeWriter struct {
+	stiface.Writer
+	obj fakeObjectHandle
+	buf bytes.Buffer
+}
+
+func (o fakeObjectHandle) NewWriter(context.Context) stiface.Writer {
+	return &fakeWriter{obj: o}
+}
+
+func (w *fakeWriter) Write(data []byte) (int, error) {
+	return w.buf.Write(data)
+}
+
+func (w *fakeWriter) Close() error {
+	return nil
+}
+
+func (c *fakeClient) Buckets(ctx context.Context, projectID string) (it stiface.BucketIterator) {
+	switch projectID {
+	case "Environmentalist":
+		it = &fakeBucketIterator{
+			i: 0,
+			next: []storage.BucketAttrs{
+				{Name: "Economist"},
+			},
+		}
+	case "Economist":
+		it = &fakeBucketIterator{
+			i: 0,
+			next: []storage.BucketAttrs{
+				{Name: "Environmentalist"},
+				{Name: "Economist"},
+			},
+		}
+	case "":
+		it = &fakeBucketIterator{
+			i: 0,
+			next: []storage.BucketAttrs{
+				{Name: "Environmentalist"},
+			},
+		}
 	}
-	client := newFakeClient() // stiface as part of storage
-	defer client.Close()
-	//bucketHandle := client.Bucket(bucketName)
+	return
+}
+
+func (it *fakeBucketIterator) Next() (a *storage.BucketAttrs, err error) {
+	if it.i == len(it.next) {
+		err = iterator.Done
+		return
+	}
+
+	a = &it.next[it.i]
+	it.i += 1
+	return
+}
+
+// TODO assert the name was passed - don't need to have the rest of this
+func (b fakeBucketHandle) Create(_ context.Context, _ string, attrs *storage.BucketAttrs) error {
+	if _, ok := b.c.buckets[b.name]; ok {
+		return fmt.Errorf("bucket %q already exists", b.name)
+	}
+	if attrs == nil {
+		attrs = &storage.BucketAttrs{}
+	}
+	attrs.Name = b.name
+	b.c.buckets[b.name] = &fakeBucket{attrs: attrs, objects: map[string][]byte{}}
+	return nil
+}
+
+func setupGCS(t *testing.T) *StorageConnection {
+	bucketName := "LaDuke"
+	client := newFakeClient()
+	bucketHandle := client.Bucket(bucketName)
 
 	gcs := &StorageConnection{
-		Ctx:        ctx,
-		ProjectID:  "susan-la-flesche-picotte",
+		ProjectID:  "Winona-LaDuke",
 		BucketName: bucketName,
-		//client: client,
-		//bucket: bucketHandle,
+		client:     client,
+		bucket:     bucketHandle,
 	}
 	return gcs
 }
 
 func TestCreateGCSBucket(t *testing.T) {
-	gcs := setupGCS(t)
+	ctx := context.Background()
+	storage := setupGCS(t)
 
 	tests := []struct {
 		comparisonType string
 		bucketName     string
-		storage        StorageConnection
+		gcs            *StorageConnection
+		projectID string
 		wantErr        error
 	}{
-		// Test no error
+		// Test create bucket
 		{
-			comparisonType: "Test nil error",
-			storage:        *gcs,
-			bucketName:     "susan",
+			comparisonType: "Test Create is called",
+			gcs:            storage,
+			bucketName:     "Environmentalist",
+			projectID:     "Environmentalist",
+			wantErr:        nil,
+		},
+		// Test empty bucket name
+		{
+			comparisonType: "Test Create is not called",
+			gcs:            storage,
+			bucketName:     "Environmentalist",
+			projectID:     "Economist",
 			wantErr:        nil,
 		},
 		// Test empty bucket name
 		{
 			comparisonType: "Test not nil error",
-			storage:        *gcs,
+			gcs:            storage,
 			bucketName:     "",
-			wantErr:        fmt.Errorf("06-17"),
+			projectID:     "",
+			wantErr:        fmt.Errorf("empty"),
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.comparisonType, func(t *testing.T) {
-			test.storage.BucketName = test.bucketName
-			if gotErr := gcs.CreateGCSBucket(); gotErr != test.wantErr {
-				if !strings.Contains(gotErr.Error(), test.wantErr.Error()) {
+			test.gcs.BucketName = test.bucketName
+			test.gcs.ProjectID = test.projectID
+			if gotErr := storage.CreateGCSBucket(ctx); gotErr != test.wantErr {
+				if gotErr == nil || !strings.Contains(gotErr.Error(), test.wantErr.Error()) {
 					t.Errorf("CreateMMFileName response does not match.\n got: %v\nwant: %v", gotErr, test.wantErr)
 				}
 			}
 		})
 	}
-
 }
 
 func TestStoreGCS(t *testing.T) {
+	ctx := context.Background()
 	gcs := setupGCS(t)
+
 	tests := []struct {
 		comparisonType string
 		storage        StorageConnection
@@ -119,31 +214,31 @@ func TestStoreGCS(t *testing.T) {
 		{
 			comparisonType: "Test nil error",
 			storage:        *gcs,
-			filename:       "picoatte.gz",
-			url:            "https://en.wikipedia.org/wiki/Susan_La_Flesche_Picotte",
+			filename:       "laduke.gz",
+			url:            "https://en.wikipedia.org/wiki/Winona_LaDuke",
 			wantErr:        nil,
 		},
 		// Test empty filename
 		{
-			comparisonType: "Test not nil error",
+			comparisonType: "Test empty filename",
 			storage:        *gcs,
 			filename:       "",
-			url:            "https://en.wikipedia.org/wiki/Susan_La_Flesche_Picotte",
-			wantErr:        fmt.Errorf("06-17"),
+			url:            "https://en.wikipedia.org/wiki/Winona_LaDuke",
+			wantErr:        fmt.Errorf("Filename"),
 		},
 		// Test empty url
 		{
-			comparisonType: "Test not nil error",
+			comparisonType: "Test empty url",
 			storage:        *gcs,
-			filename:       "picoatte.gz",
+			filename:       "laduke.gz",
 			url:            "",
-			wantErr:        fmt.Errorf("06-17"),
+			wantErr:        fmt.Errorf("HTTP"),
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.comparisonType, func(t *testing.T) {
-			if gotErr := gcs.StoreGCS(test.filename, test.url); gotErr != test.wantErr {
-				if !strings.Contains(gotErr.Error(), test.wantErr.Error()) {
+			if gotErr := gcs.StoreGCS(ctx, test.filename, test.url); gotErr != test.wantErr {
+				if gotErr == nil || !strings.Contains(gotErr.Error(), test.wantErr.Error()) {
 					t.Errorf("CreateMMFileName response does not match.\n got: %v\nwant: %v", gotErr, test.wantErr)
 				}
 			}

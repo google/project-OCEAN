@@ -17,49 +17,57 @@ package pipermail
 import (
 	"1-raw-data/gcs"
 	"context"
+	"os"
 	"strings"
 	"testing"
 )
 
-// Simulate Storage Connection struct
-type StorageConnection struct {
+type fakeStorageConnection struct {
+	gcs.StorageConnection
 	ProjectID  string
 	BucketName string
 }
 
+func newFakeStorageConnection() *fakeStorageConnection {
+	return &fakeStorageConnection{ProjectID: "pine_leaf", BucketName: "Bíawacheeitchish"}
+}
+
 // Simulate StoreGCS
-func (gcs *StorageConnection) StoreGCS(t *testing.T, fileName, url string) error {
+func (gcs *fakeStorageConnection) StoreGCS(ctx context.Context, fileName, url string) error {
+	if strings.Contains(url, "pipermail") {
+		return os.ErrNotExist
+	}
 	return nil
 }
 
 func TestGetPipermailData(t *testing.T) {
 	ctx := context.Background()
-	storage := gcs.StorageConnection{}
+	storage := newFakeStorageConnection()
 
 	tests := []struct {
 		comparisonType string
-		storage        gcs.StorageConnection
+		gcs            *fakeStorageConnection
 		mailingListURL string
 		wantErr        error
 	}{
 		{
-			comparisonType: "Test nil error",
-			storage:        storage,
-			mailingListURL: "https://en.wikipedia.org/wiki/Susan_La_Flesche_Picotte",
+			comparisonType: "Test url is not pipermail and doesn't store",
+			gcs:            storage,
+			mailingListURL: "https://en.wikipedia.org/Pine_Leaf",
 			wantErr:        nil,
 		},
 		{
-			comparisonType: "Test not nil error",
-			storage:        storage,
-			mailingListURL: "https://en.wikipedia.org/wiki/Susan_La_Flesche_Picotte",
-			wantErr:        nil,
+			comparisonType: "Test pipermail url gets to StoreGCS method and erro",
+			gcs:            storage,
+			mailingListURL: "https://mail.python.org/pipermail/python-announce-list/",
+			wantErr:        os.ErrNotExist,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.comparisonType, func(t *testing.T) {
-			if gotErr := GetPipermailData(ctx, test.storage, test.mailingListURL); gotErr != test.wantErr {
-				if !strings.Contains(gotErr.Error(), test.wantErr.Error()) {
+			if gotErr := GetPipermailData(ctx, test.gcs, test.mailingListURL); gotErr != nil {
+				if gotErr == nil ||!strings.Contains(gotErr.Error(), test.wantErr.Error()) {
 					t.Errorf("GetPipermailData response does not match.\n got: %v\nwant: %v", gotErr, test.wantErr)
 				}
 			}

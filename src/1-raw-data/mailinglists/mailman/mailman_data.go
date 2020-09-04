@@ -39,13 +39,13 @@ func setDates(startDate, endDate string) (time.Time, time.Time, error) {
 		startDate = time.Now().Format("2006-01-02")
 	}
 	if startDateTime, err = time.Parse("2006-01-02", startDate); err != nil {
-		return time.Time{}, time.Time{}, fmt.Errorf("Start date string conversion to DateTime threw an error: %v", err)
+		return time.Time{}, time.Time{}, fmt.Errorf("Start date string conversion to DateTime threw an error: %w", err)
 	}
 	if endDate == "" {
 		endDate = time.Now().Format("2006-01-02")
 	}
 	if endDateTime, err = time.Parse("2006-01-02", endDate); err != nil {
-		return time.Time{}, time.Time{}, fmt.Errorf("End date string conversion to DateTime threw an error: %v", err)
+		return time.Time{}, time.Time{}, fmt.Errorf("End date string conversion to DateTime threw an error: %w", err)
 	}
 	// TODO assess if better to throw error?
 	if startDate == endDate {
@@ -86,7 +86,7 @@ func breakDateByMonth(startDateTime, endDateTime time.Time) (time.Time, time.Tim
 }
 
 // Get, parse and store mailman data in GCS.
-func GetMailmanData(ctx context.Context, storage gcs.StorageConnection, baseURL, startDate, endDate string) error {
+func GetMailmanData(ctx context.Context, storage gcs.GCSConnection, baseURL, startDate, endDate string) error {
 	var startDateTime, endDateTime time.Time
 	var filename, url string
 	var err error
@@ -102,7 +102,7 @@ func GetMailmanData(ctx context.Context, storage gcs.StorageConnection, baseURL,
 		filename = createMailmanFilename(startDateTime.String())
 		url = createMailmanURL(baseURL, filename, startDateTime.Format("2006-01-02"), endDateTime.Format("2006-01-02"))
 		if err := storage.StoreGCS(ctx, filename, url); err != nil {
-			return fmt.Errorf("Storage failed: %v", err)
+			return fmt.Errorf("Storage failed: %w", err)
 		}
 		startDateTime = startDateTime.AddDate(0, 1, 0)
 		endDateTime = endDateTime.AddDate(0, 1, 0)

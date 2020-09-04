@@ -18,19 +18,27 @@ import (
 	"1-raw-data/gcs"
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
 )
 
-// Simulate Storage Connection struct
-type StorageConnection struct {
+type fakeStorageConnection struct {
+	gcs.StorageConnection
 	ProjectID  string
 	BucketName string
 }
 
+func newFakeStorageConnection() *fakeStorageConnection {
+	return &fakeStorageConnection{ProjectID: "Susan-Picotte", BucketName: "Physician"}
+}
+
 // Simulate StoreGCS
-func (gcs *StorageConnection) StoreGCS(t *testing.T, fileName, url string) error {
+func (gcs *fakeStorageConnection) StoreGCS(ctx context.Context, fileName, url string) error {
+	if strings.Contains(url, "Susan") {
+		return os.ErrNotExist
+	}
 	return nil
 }
 
@@ -206,32 +214,41 @@ func TestBreakDateByMonth(t *testing.T) {
 }
 
 func TestGetMailmanData(t *testing.T) {
-	storage := gcs.StorageConnection{}
 	ctx := context.Background()
+	storage := newFakeStorageConnection()
 
 	tests := []struct {
 		comparisonType string
-		storage        gcs.StorageConnection
+		storage        *fakeStorageConnection
 		baseURL        string
 		startDate      string
 		endDate        string
 		wantErr        error
 	}{
-		// Test no error and StoreGCS is called
+		// Test StoreGCS is called
 		{
 			comparisonType: "One month",
 			storage:        storage,
 			baseURL:        "https://en.wikipedia.org/wiki/Susan_La_Flesche_Picotte",
 			startDate:      "1915-09-01",
 			endDate:        "1915-09-30",
-			wantErr:        nil,
+			wantErr:        os.ErrNotExist,
 		},
-		// SetDate error
+		// SetDate error wrong format startDate
 		{
-			comparisonType: "Same date",
+			comparisonType: "StartDate wrong format",
 			storage:        storage,
 			baseURL:        "https://en.wikipedia.org/wiki/Susan_La_Flesche_Picotte",
 			startDate:      "06-17",
+			endDate:        "1915-09-30",
+			wantErr:        fmt.Errorf("06-17"),
+		},
+		// SetDate error wrong format endDate
+		{
+			comparisonType: "EndDate wrong format",
+			storage:        storage,
+			baseURL:        "https://en.wikipedia.org/wiki/Susan_La_Flesche_Picotte",
+			startDate:      "1915-09-01",
 			endDate:        "06-17",
 			wantErr:        fmt.Errorf("06-17"),
 		},

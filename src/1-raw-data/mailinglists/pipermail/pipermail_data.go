@@ -28,37 +28,40 @@ import (
 	"context"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
-	"log"
 	"net/http"
 	"strings"
 )
 
 // Get, parse and store Pipermail data in GCS.
-func GetPipermailData(ctx context.Context, storage gcs.StorageConnection, mailingListURL string) error {
+func GetPipermailData(ctx context.Context, storage gcs.GCSConnection, mailingListURL string) error {
+	var storageErr error
 	response, err := http.Get(mailingListURL)
 	if err != nil {
-		return fmt.Errorf("HTTP response returned an error: %v", err)
+		return fmt.Errorf("HTTP response returned an error: %w", err)
 	}
 	defer response.Body.Close()
 
 	if response.StatusCode == http.StatusOK {
 		dom, _ := goquery.NewDocumentFromReader(response.Body)
 		dom.Find("tr").Find("td").Find("a").Each(func(i int, s *goquery.Selection) {
-			band, ok := s.Attr("href")
+			filename, ok := s.Attr("href")
 			if ok {
-				check := strings.Split(band, ".")
+				check := strings.Split(filename, ".")
 				len := len(check) - 1
 				if check[len] == "gz" {
-					if strings.Split(band, ":")[0] != "https" {
-						path := fmt.Sprintf("%v%v", mailingListURL, band)
-						if err := storage.StoreGCS(ctx, band, path); err != nil {
+					if strings.Split(filename, ":")[0] != "https" {
+						url := fmt.Sprintf("%v%v", mailingListURL, filename)
+						if err := storage.StoreGCS(ctx, filename, url); err != nil {
 							// Each func interface doesn't allow passing errors?
-							log.Fatalf("Storage failed: %v", err)
+							storageErr = fmt.Errorf("Storage failed: %w", err)
 						}
 					}
 				}
 			}
 		})
+		if storageErr != nil {
+			return fmt.Errorf("%w", storageErr)
+		}
 	}
 	return nil
 }
