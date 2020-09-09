@@ -84,7 +84,7 @@ def get_msgs(storage_client, bucketname, fpath):
     with gzip.open(lf, 'rb') as f:
       for line in f:
         try:
-          dl = try_decode(line)  # decode the line for use with re.search()
+          dl = try_decode(line)  # decode the line for re.search() call
         except UnicodeDecodeError as e:
           print(e)
           print(line)
@@ -110,42 +110,47 @@ def get_msgs(storage_client, bucketname, fpath):
 
 
 def get_email_objs(msgs):
-  """..."""
+  """parse the msg texts"""
   email_objs = []
   for m in msgs:
-    if m:
-      # email_objs.append(email.message_from_string(m))
+    if m:  # then parse the message.
+      # TODO: is error-handling needed here? It doesn't appear to fail with the current archives.
       res = email.parser.BytesParser().parsebytes(m)
-      # print('\n-----byte parse res: {} of type {}'.format(res, type(res)))
-      # time.sleep(10)
       email_objs.append(res)
   return email_objs
 
 
 def get_msg_parts(msg):
-  """..."""
+  """given a parsed email (msg object), extract its header info and the text version of
+  its body.
+  """
   if msg.is_multipart():
     for part in msg.walk():
       ctype = part.get_content_type()
       cdispo = str(part.get('Content-Disposition'))
       if ctype == 'text/plain' and 'attachment' not in cdispo:
-        body = part.get_payload(decode=True)  # decode
+        body = part.get_payload(decode=True)
         break
   else:
       body = msg.get_payload(decode=True)
-  mparts = msg.items()
+  # currently, writing both the decoded string and the base64-ified bytestring for the body,
+  # to bigquery. (Did this b/c I wasn't confident in how the decoding was happening in all cases.
+  # However, I think it may be essentially redundant.)
   mparts.append(('Body', try_decode(body)))
   b64_bstring = base64.b64encode(body)
-  # print('got b64 string {}'.format(b64_string))
-  b64_string = (str(b64_bstring)[2:])[:-1]
-  # print('now have b64 string {}'.format(b64_string))
-  mparts.append(('body_bytes', b64_string))  # uhhhh
+  b64_string = (str(b64_bstring)[2:])[:-1]  # uhhh... there has got to be a better way to convert
+  # the base64 bytestring to a a string, needed for the json bq ingestion (but I couldn't figure
+  # it out)
+  mparts.append(('body_bytes', b64_string))
   return mparts
 
 
 # TODO: this essentially works... but what's the best way to deal with all these different formats?
-# (after discn on python chat channel, seems this may be the best approach...)
+# (update: after discn on internal python chat channel, seems this may be the best approach...
+# All the different formats are probably due to ancient mail client variants. It's the older
+# messages that have issues.)
 def parse_datestring(datestring):
+  """given a date string, try to parse it into a date object."""
   date_object = None
   try:
     date_object = parser.parse(datestring)
@@ -156,21 +161,21 @@ def parse_datestring(datestring):
     try:
       m = re.search('(.* [-+]\d\d\d\d).*$', datestring)
       # print('tried: {}'.format('(.* [-+]\d\d\d\d).*$'))
-      print('trying date string {}'.format(m[1]))
+      # print('trying date string {}'.format(m[1]))
       date_object = parser.parse(m[1])
     except (TypeError, parser._parser.ParserError) as err2:
       print(err2)
       try:
         m = re.search('(.*)\(.*\)', datestring)
         # print('2nd try: {}'.format('(.*)\(.*\)'))
-        print('trying date string {}'.format(m[1]))
+        # print('trying date string {}'.format(m[1]))
         date_object = parser.parse(m[1])
       except (TypeError, parser._parser.ParserError) as err3:
         print(err3)
         try:
           m = re.search('(.*) [a-zA-Z]+$', datestring)
           # print('3rd try: {}'.format('(.*) [a-zA-Z]+$'))
-          print('trying date string {}'.format(m[1]))
+          # print('trying date string {}'.format(m[1]))
           date_object = parser.parse(m[1])
         except (TypeError, parser._parser.ParserError) as err4:
           print(err4)
@@ -183,14 +188,15 @@ def parse_datestring(datestring):
 
 
 def get_email_dicts(parsed_msgs):
-
+  """takes a list of message objects, and turns them into json dicts for insertion into BQ."""
   json_rows = []
   for msg in parsed_msgs:
     row_dict = {}
     row_dict['refs'] = []  # this repeated field is not nullable
     for e in msg:
       if e[0].lower() == 'date':  # convert to DATETIME-friendly utc time
-        row_dict['raw_date_string'] = e[1].strip()  # store the raw string as well, in case parsing issues
+        # store the raw string also, in case parsing issues, which happens in a few outlier cases
+        row_dict['raw_date_string'] = e[1].strip()
         date_object = parse_datestring(e[1])
         if date_object:
           ds = date_object.astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
@@ -198,14 +204,11 @@ def get_email_dicts(parsed_msgs):
       elif e[0].lower() == 'from':
         from_string = e[1].lower().strip()
         row_dict['raw_from_string'] = from_string
-        # print('starting "from" string: {}'.format(e[1]))
-        from_addr = from_string.replace(' at ', '@')  # is this sufficient?
+        # some of the archives use the ' at ' syntax to encode the email addresses.
+        from_addr = from_string.replace(' at ', '@')
         parsed_addr = email.utils.getaddresses([from_addr])
-        # print('parsed addr: {}'.format(parsed_addr))
-        # time.sleep(2)
         # TODO: better error checks/handling?  If either is not set, the other (apparently) is
-        # often wrong. So here, not setting either. The raw string will still be stored.
-        # Not sure if this is the best approach...
+        # often wrong. The raw string will still be stored. Not sure if this is the best approach...
         if parsed_addr[0][0]:
           row_dict['from_name'] = parsed_addr[0][0]
         if parsed_addr[0][1]:
@@ -240,13 +243,13 @@ def get_email_dicts(parsed_msgs):
 
 
 def messages_to_bigquery(json_rows, table_id, chunk_size):
-
+  """insert a list of message dicts into the given BQ table.  chunk_size determines how many are loaded
+  at once. (If the payload is too large, it will throw an error.)
+  """
   client = bigquery.Client()
   table = client.get_table(table_id)
   jrcs = chunks(json_rows, chunk_size)
   for jl in jrcs:
-    # temp
-    # print('jl: {}'.format(jl))
     errors = client.insert_rows_json(table, jl)
     if errors == []:
       print("New rows have been added without error.")
