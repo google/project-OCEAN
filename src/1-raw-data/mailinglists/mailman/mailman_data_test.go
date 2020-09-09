@@ -17,6 +17,7 @@ package mailman
 import (
 	"1-raw-data/gcs"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -34,12 +35,13 @@ func newFakeStorageConnection() *fakeStorageConnection {
 	return &fakeStorageConnection{ProjectID: "Susan-Picotte", BucketName: "Physician"}
 }
 
-// Simulate StoreGCS
-func (gcs *fakeStorageConnection) StoreGCS(ctx context.Context, fileName, url string) error {
+// Simulate gcs StoreInBucket
+func (gcs *fakeStorageConnection) StoreInBucket(ctx context.Context, fileName, url string) (storageErr error) {
 	if strings.Contains(url, "Susan") {
-		return os.ErrNotExist
+		err := os.ErrNotExist
+		storageErr = fmt.Errorf("%v", err)
 	}
-	return nil
+	return
 }
 
 func TestSetDates(t *testing.T) {
@@ -83,10 +85,27 @@ func TestSetDates(t *testing.T) {
 			wantEnd:        "1915-09-18",
 			err:            nil,
 		},
+		// Test end date after today's date if start of month
+		{
+			comparisonType: "End date after today",
+			start:          "2020-09-01",
+			end:            "3020-09-01",
+			wantStart:      "2020-09-01",
+			wantEnd:        today,
+			err:            nil,
+		},
+		{
+			comparisonType: "End date after today",
+			start:          "2020-09-01",
+			end:            "3020-09-30",
+			wantStart:      "2020-09-01",
+			wantEnd:        today,
+			err:            nil,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.comparisonType, func(t *testing.T) {
-			if gotStart, gotEnd, err := setDates(test.start, test.end); err == test.err {
+			if gotStart, gotEnd, err := setDates(test.start, test.end); errors.Is(err, test.err) {
 				if strings.Compare(gotStart.Format("2006-01-02"), test.wantStart) != 0 {
 					t.Errorf("SetDates start response does not match for %v.\n got: %v\nwant: %v", test.comparisonType, gotStart.Format("2006-01-02"), test.wantStart)
 				}
@@ -208,7 +227,6 @@ func TestBreakDateByMonth(t *testing.T) {
 			if strings.Compare(test.wantEnd, actualEnd.Format("2006-01-02")) != 0 {
 				t.Errorf("BreakDateByMonth end response does not match.\n got: %v\n want: %v", actualEnd.Format("2006-01-02"), test.wantEnd)
 			}
-			fmt.Printf("%v : cycleDates result matches.", test.comparisonType)
 		})
 	}
 }
@@ -225,7 +243,7 @@ func TestGetMailmanData(t *testing.T) {
 		endDate        string
 		wantErr        error
 	}{
-		// Test StoreGCS is called
+		// Test StoreInBucket is called
 		{
 			comparisonType: "One month",
 			storage:        storage,
@@ -255,7 +273,7 @@ func TestGetMailmanData(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.comparisonType, func(t *testing.T) {
-			if gotErr := GetMailmanData(ctx, test.storage, test.baseURL, test.startDate, test.endDate); gotErr != test.wantErr {
+			if gotErr := GetMailmanData(ctx, test.storage, test.baseURL, test.startDate, test.endDate); !errors.Is(gotErr, test.wantErr) {
 				if !strings.Contains(gotErr.Error(), test.wantErr.Error()) {
 					t.Errorf("Error doesn't match.\n got: %v\nwant it to contain: %v", gotErr, test.wantErr)
 				}

@@ -17,6 +17,8 @@ package pipermail
 import (
 	"1-raw-data/gcs"
 	"context"
+	"errors"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -33,11 +35,12 @@ func newFakeStorageConnection() *fakeStorageConnection {
 }
 
 // Simulate StoreGCS
-func (gcs *fakeStorageConnection) StoreGCS(ctx context.Context, fileName, url string) error {
+func (gcs *fakeStorageConnection) StoreInBucket(ctx context.Context, fileName, url string) (storageErr error) {
+	errStorageInBucket := errors.New("gcs storage failed")
 	if strings.Contains(url, "pipermail") {
-		return os.ErrNotExist
+		storageErr = fmt.Errorf("%w: %v", errStorageInBucket, os.ErrNotExist)
 	}
-	return nil
+	return
 }
 
 func TestGetPipermailData(t *testing.T) {
@@ -66,9 +69,9 @@ func TestGetPipermailData(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.comparisonType, func(t *testing.T) {
-			if gotErr := GetPipermailData(ctx, test.gcs, test.mailingListURL); gotErr != nil {
-				if gotErr == nil || !strings.Contains(gotErr.Error(), test.wantErr.Error()) {
-					t.Errorf("GetPipermailData response does not match.\n got: %v\nwant: %v", gotErr, test.wantErr)
+			if gotErr := GetPipermailData(ctx, test.gcs, test.mailingListURL); !errors.Is(gotErr, test.wantErr) {
+				if !strings.Contains(gotErr.Error(), test.wantErr.Error()) {
+					t.Errorf("GetPipermailData response does not match.\n got: %v\nwant: %v", errors.Unwrap(gotErr), test.wantErr)
 				}
 			}
 		})

@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"cloud.google.com/go/storage"
 	"context"
+	"errors"
 	"fmt"
 	"github.com/googleapis/google-cloud-go-testing/storage/stiface"
 	"google.golang.org/api/iterator"
@@ -150,7 +151,7 @@ func setupGCS(t *testing.T) *StorageConnection {
 	return gcs
 }
 
-func TestCreateGCSBucket(t *testing.T) {
+func TestCreateBucket(t *testing.T) {
 	ctx := context.Background()
 	storage := setupGCS(t)
 
@@ -190,8 +191,8 @@ func TestCreateGCSBucket(t *testing.T) {
 		t.Run(test.comparisonType, func(t *testing.T) {
 			test.gcs.BucketName = test.bucketName
 			test.gcs.ProjectID = test.projectID
-			if gotErr := storage.CreateGCSBucket(ctx); gotErr != test.wantErr {
-				if gotErr == nil || !strings.Contains(gotErr.Error(), test.wantErr.Error()) {
+			if gotErr := storage.CreateBucket(ctx); !errors.Is(gotErr, test.wantErr) {
+				if !strings.Contains(gotErr.Error(), test.wantErr.Error()) {
 					t.Errorf("CreateMMFileName response does not match.\n got: %v\nwant: %v", gotErr, test.wantErr)
 				}
 			}
@@ -199,7 +200,7 @@ func TestCreateGCSBucket(t *testing.T) {
 	}
 }
 
-func TestStoreGCS(t *testing.T) {
+func TestStoreInBucket(t *testing.T) {
 	ctx := context.Background()
 	gcs := setupGCS(t)
 
@@ -237,8 +238,8 @@ func TestStoreGCS(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.comparisonType, func(t *testing.T) {
-			if gotErr := gcs.StoreGCS(ctx, test.filename, test.url); gotErr != test.wantErr {
-				if gotErr == nil || !strings.Contains(gotErr.Error(), test.wantErr.Error()) {
+			if gotErr := gcs.StoreInBucket(ctx, test.filename, test.url); !errors.Is(gotErr, test.wantErr) {
+				if !strings.Contains(gotErr.Error(), test.wantErr.Error()) {
 					t.Errorf("CreateMMFileName response does not match.\n got: %v\nwant: %v", gotErr, test.wantErr)
 				}
 			}

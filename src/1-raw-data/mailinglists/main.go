@@ -42,18 +42,18 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	var storage gcs.GCSConnection
+	var storage gcs.Connection
 
 	storageConn := gcs.StorageConnection{
 		BucketName: *bucketName,
 		ProjectID:  *projectID,
 	}
 
-	if err := storageConn.ConnectGCSClient(ctx); err != nil {
+	if err := storageConn.ConnectClient(ctx); err != nil {
 		log.Fatalf("Connect GCS failes: %v", err)
 	}
 
-	if err := storageConn.CreateGCSBucket(ctx); err != nil {
+	if err := storageConn.CreateBucket(ctx); err != nil {
 		log.Fatalf("Create GCS Bucket failed: %v", err)
 	}
 
