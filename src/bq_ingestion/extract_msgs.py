@@ -39,11 +39,13 @@ def blob_list(storage_client, bucketname, prefix):
   return [blob.name for blob in blobs]
 
 def chunks(l, n):
+  """break a list into chunks"""
   for i in range(0, len(l), n):
     # Create an index range for l of n items:
     yield l[i:i+n]
 
 def try_decode(string, codecs=['utf8', 'iso8859_1', 'iso8859_2']):
+  """try using various codecs in turn to decode a byte string"""
   # temp testing... can I get the character encoding?
   # Update: this does not seem accurate enough to be useful.
   # enc = chardet.detect(string)
@@ -60,7 +62,10 @@ def try_decode(string, codecs=['utf8', 'iso8859_1', 'iso8859_2']):
   raise exp
 
 def get_msgs(storage_client, bucketname, fpath):
-
+  """read a gcs file, and build an array of messages text.
+  Uses the 'from' line after an empty line to detect a new message. (Which seems to work fine
+  for our archives). Returns the array of messages.
+  """
   bucket = storage_client.get_bucket(bucketname)
 
   blob = bucket.get_blob(fpath)
@@ -79,32 +84,33 @@ def get_msgs(storage_client, bucketname, fpath):
     with gzip.open(lf, 'rb') as f:
       for line in f:
         try:
-          dl = try_decode(line)
+          dl = try_decode(line)  # decode the line for use with re.search()
         except UnicodeDecodeError as e:
           print(e)
           print(line)
-          # TODO: this is unlikely, but what is the right handling?
+          # TODO: this is unlikely to occur (it does not in our current archives), but what
+          # is the right handling if it does?
           break
         m = re.search('^^From .*\d', dl)
         if m:
-          # print('found start of msg: {}'.format(dl))
-          # msg = ''.join(msg_lines)
           msg = b''.join(msg_lines)
           msgs.append(msg)
           msg_lines = []
+          msg_lines.append(line)
         else:
-          # msg_lines.append(dl)
-          msg_lines.append(line)  # hmmm
+          msg_lines.append(line)
     if os.path.exists(lf):   # delete temp file
       os.remove(lf)
   except EOFError as e:
     print(e)
+    # there appear to be some 'empty' archives for which this error will be generated.
     print('{} not successfully gunzipped'.format(fpath))
     time.sleep(5)
   return msgs
 
 
 def get_email_objs(msgs):
+  """..."""
   email_objs = []
   for m in msgs:
     if m:
@@ -117,6 +123,7 @@ def get_email_objs(msgs):
 
 
 def get_msg_parts(msg):
+  """..."""
   if msg.is_multipart():
     for part in msg.walk():
       ctype = part.get_content_type()
@@ -196,13 +203,13 @@ def get_email_dicts(parsed_msgs):
         parsed_addr = email.utils.getaddresses([from_addr])
         # print('parsed addr: {}'.format(parsed_addr))
         # time.sleep(2)
-        # TODO: better error checks/handling?  If either is not set, the other (apparently) is 
+        # TODO: better error checks/handling?  If either is not set, the other (apparently) is
         # often wrong. So here, not setting either. The raw string will still be stored.
         # Not sure if this is the best approach...
         if parsed_addr[0][0]:
           row_dict['from_name'] = parsed_addr[0][0]
         if parsed_addr[0][1]:
-          row_dict['from_email'] = parsed_addr[0][1]          
+          row_dict['from_email'] = parsed_addr[0][1]
       elif e[0].lower() == 'references':
         refs_string = e[1].strip()
         row_dict['references'] = refs_string
