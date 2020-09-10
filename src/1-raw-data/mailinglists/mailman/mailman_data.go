@@ -24,69 +24,98 @@ package mailman
 
 import (
 	"1-raw-data/gcs"
+	"context"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 )
 
 // Check dates used in the Mailman filename have value, are not the same and that start before end.
-func setDates(startDate, endDate string) (string, string, error) {
-	var startDateTime, endDateTime time.Time
-	var err error
-
+func setDates(startDate, endDate string) (startDateTime, endDateTime time.Time, err error) {
 	if startDate == "" {
 		startDate = time.Now().Format("2006-01-02")
 	}
-	if endDate == "" {
+	if startDateTime, err = time.Parse("2006-01-02", startDate); err != nil {
+		startDateTime, endDateTime = time.Time{}, time.Time{}
+		err = fmt.Errorf("Start date string conversion to DateTime threw an error: %w", err)
+		return
+	}
+	if endDate == "" || endDate > time.Now().Format("2006-01-02") {
 		endDate = time.Now().Format("2006-01-02")
 	}
-	if startDateTime, err = time.Parse("2006-01-02", startDate); err != nil {
-		return startDate, endDate, fmt.Errorf("Date string conversion to DateTime threw an error: %v", err)
-	}
 	if endDateTime, err = time.Parse("2006-01-02", endDate); err != nil {
-		return startDate, endDate, fmt.Errorf("Date string conversion to DateTime threw an error: %v", err)
+		startDateTime, endDateTime = time.Time{}, time.Time{}
+		err = fmt.Errorf("End date string conversion to DateTime threw an error: %w", err)
+		return
 	}
 	if startDate == endDate {
 		startDateTime = startDateTime.AddDate(0, 0, -1)
 		startDate = startDateTime.Format("2006-01-02")
 	}
 	if startDateTime.After(endDateTime) {
-		return startDate, endDate, fmt.Errorf("Start date %v was past end date %v. Update input with different start date.", startDate, endDate)
+		err = fmt.Errorf("Start date %v was past end date %v. Update input with different start date.", startDate, endDate)
 	}
-	return startDate, endDate, nil
+	return
 }
 
-func createMailmanFilename(currentStart string) string {
+// Create filename to save Mailman data.
+func createMailmanFilename(currentStart string) (fileName string) {
 	yearMonth := strings.Split(currentStart, "-")[0:2]
-	return strings.Join(yearMonth, "-") + ".mbox.gz"
+	fileName = strings.Join(yearMonth, "-") + ".mbox.gz"
+	return
 }
 
-// Create URL needed for Mailman with specific dates and filename for output.
-func createMailmanURL(mailingListURL, filename, startDate, endDate string) string {
-	return fmt.Sprintf("%vexport/python-dev@python.org-%v?start=%v&end=%v", mailingListURL, filename, startDate, endDate)
+// Create URL needed for Mailman with specific dates and filename for output. Forces start to first of month and end to end of month unless current date.
+func createMailmanURL(mailingListURL, filename, startDate, endDate string) (url string) {
+	url = fmt.Sprintf("%vexport/python-dev@python.org-%v?start=%v&end=%v", mailingListURL, filename, startDate, endDate)
+	return
 }
 
-func cycleDates(startDate, endDate string) (string, string) {
-	return "", ""
+// Break dates out to span only a month, start must be 1st and end must be 1st of the following month unless today
+func breakDateByMonth(startDateTime, endDateTime time.Time) (time.Time, time.Time) {
+	// Change start date to the 1st of the month
+	if startDateTime.Day() > 1 {
+		startDateTime = startDateTime.AddDate(0, 0, -startDateTime.Day()+1)
+	}
+
+	firstDayFollowingMonth := startDateTime.AddDate(0, 1, 0)
+
+	// End date set to first day of following month unless its today; then leave as today
+	if endDateTime.Day() != 1 || firstDayFollowingMonth.Format("2006-01-02") < endDateTime.Format("2006-01-02") || firstDayFollowingMonth.Format("2006-01-02") <= time.Now().Format("2006-01-02") {
+		endDateTime = firstDayFollowingMonth
+	}
+	return startDateTime, endDateTime
 }
 
 // Get, parse and store mailman data in GCS.
-func GetMailmanData(gcs gcs.StorageConnection, mailingListURL, startDate, endDate string) error {
-	// TODO cycle through dates if they are more than a month apart
-	if start, end, err := setDates(startDate, endDate); err != nil {
-		return err
-	} else {
-		fmt.Println(start, end)
+func GetMailmanData(ctx context.Context, storage gcs.Connection, baseURL, startDate, endDate string) (err error) {
+	var startDateTime, endDateTime time.Time
+	var filename, url string
+
+	if startDateTime, endDateTime, err = setDates(startDate, endDate); err != nil {
+		return
 	}
 
-	//if convertDateTime(endDate).Add(-convertDateTime(startDate)) > 30
-	filename := createMailmanFilename(startDate)
-	url := createMailmanURL(mailingListURL, filename, startDate, endDate)
+	orgEndDateTime := endDateTime
 
-	if err := gcs.StoreGCS(filename, url); err != nil {
-		return fmt.Errorf("Storage failed: %v", err)
+	// If the date range is larger than one month, cycle and capture content by month
+	for startDateTime.Format("2006-01-02") <= orgEndDateTime.Format("2006-01-02") {
+		startDateTime, endDateTime = breakDateByMonth(startDateTime, endDateTime)
+		filename = createMailmanFilename(startDateTime.String())
+		url = createMailmanURL(baseURL, filename, startDateTime.Format("2006-01-02"), endDateTime.Format("2006-01-02"))
+		if err = storage.StoreInBucket(ctx, filename, url); err != nil {
+			err = fmt.Errorf("Storage failed: %w", err)
+			return
+		}
+		startDateTime = startDateTime.AddDate(0, 1, 0)
+		endDateTime = endDateTime.AddDate(0, 1, 0)
 	}
-	return nil
+	if endDateTime.Format("2006-01-02") != orgEndDateTime.Format("2006-01-02") {
+		log.Printf("Did not copy all dates. Stopped at %v vs. orginal date: %v", endDateTime.Format("2006-01-02"), orgEndDateTime.Format("2006-01-02"))
+		return fmt.Errorf("Storage failed to get all the dates, stopped at: %v when expected to stop at: %v", endDateTime.Format("2006-01-02"), orgEndDateTime.Format("2006-01-02"))
+	}
+	return
 }
 
 func main() {

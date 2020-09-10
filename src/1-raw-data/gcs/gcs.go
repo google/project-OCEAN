@@ -25,64 +25,83 @@ import (
 	"cloud.google.com/go/storage"
 	"context"
 	"fmt"
+	"github.com/googleapis/google-cloud-go-testing/storage/stiface"
 	"google.golang.org/api/iterator"
 	"io"
 	"log"
 	"net/http"
 )
 
-type StorageConnection struct {
-	Ctx        context.Context
-	ProjectID  string
-	BucketName string
-	client     *storage.Client
-	bucket     *storage.BucketHandle
+type Connection interface {
+	StoreInBucket(ctx context.Context, fileName, url string) error
 }
 
-func (gcs *StorageConnection) ConnectGCSClient() error {
-	if client, err := storage.NewClient(gcs.Ctx); err != nil {
-		return fmt.Errorf("Failed to create client: %v", err)
-	} else {
-		gcs.client = client
-		return nil
+type StorageConnection struct {
+	ProjectID  string
+	BucketName string
+	client     stiface.Client
+	bucket     stiface.BucketHandle
+}
+
+func (gcs *StorageConnection) ConnectClient(ctx context.Context) (err error){
+	c, err := storage.NewClient(ctx)
+	if err != nil {
+		err = fmt.Errorf("Failed to create client: %v", err)
+		return
 	}
+	client := stiface.AdaptClient(c)
+	gcs.client = client
+	return
 }
 
 // Creates storage bucket if it doesn't exist.
-func (gcs *StorageConnection) CreateGCSBucket() error {
+func (gcs *StorageConnection) CreateBucket(ctx context.Context) (err error) {
+	var attrs *storage.BucketAttrs
 	// Setup client bucket to work from
 	gcs.bucket = gcs.client.Bucket(gcs.BucketName)
 
-	buckets := gcs.client.Buckets(gcs.Ctx, gcs.ProjectID)
+	buckets := gcs.client.Buckets(ctx, gcs.ProjectID)
 	for {
-		attrs, err := buckets.Next()
+		// TODO bucket name validation
+		if gcs.BucketName == "" {
+			err = fmt.Errorf("BucketName entered is empty %v. Re-enter.", gcs.BucketName)
+			return
+		}
+		attrs, err = buckets.Next()
 		// Assume that if Iterator end then not found and need to create bucket
 		if err == iterator.Done {
 			// Create bucket if it doesn't exist - https://cloud.google.com/storage/docs/reference/libraries
-			if err := gcs.bucket.Create(gcs.Ctx, gcs.ProjectID, &storage.BucketAttrs{
+			if err = gcs.bucket.Create(ctx, gcs.ProjectID, &storage.BucketAttrs{
 				Location: "US",
 			}); err != nil {
 				// TODO - add random number to append to bucket name to resolve
 				return fmt.Errorf("Failed to create bucket: %v", err)
+
 			}
 			log.Printf("Bucket %v created.\n", gcs.BucketName)
-			return nil
+			return
 		}
 		if err != nil {
-			return fmt.Errorf("Issues setting up Bucket(%q).Objects(): %v. Double check project id.", attrs.Name, err)
+			err = fmt.Errorf("Issues setting up Bucket: %q due to error: %w. Double check project id.", attrs.Name, err)
+			return
 		}
 		if attrs.Name == gcs.BucketName {
 			//getLatestFile() // TODO set this up to check and compare what is in the bucket vs what isn't
 			log.Printf("Bucket %v exists.\n", gcs.BucketName)
-			return nil
+			return
 		}
 	}
 }
 
 // Store files in storage.
-func (gcs *StorageConnection) StoreGCS(fileName, url string) error {
+func (gcs *StorageConnection) StoreInBucket(ctx context.Context, fileName, url string) (err error) {
+	var response *http.Response
+	//TODO add more filename validation
+	if fileName == "" {
+		return fmt.Errorf("Filename is empty.")
+	}
 	// Get HTTP response
-	response, err := http.Get(url)
+	response, err = http.Get(url)
 	if err != nil {
 		return fmt.Errorf("HTTP response returned an error: %v", err)
 	}
@@ -92,15 +111,15 @@ func (gcs *StorageConnection) StoreGCS(fileName, url string) error {
 		obj := gcs.bucket.Object(fileName)
 
 		// w implements io.Writer.
-		w := obj.NewWriter(gcs.Ctx)
+		w := obj.NewWriter(ctx)
 
 		// Copy file into storage
-		_, err := io.Copy(w, response.Body)
+		_, err = io.Copy(w, response.Body)
 		if err != nil {
-			log.Printf("Failed to copy %v to bucket: %v", fileName, err)
+			log.Printf("Failed to copy %v to bucket with the error: %v", fileName, err)
 		}
 
-		if err := w.Close(); err != nil {
+		if err = w.Close(); err != nil {
 			return fmt.Errorf("Failed to close storage connection: %v", err)
 		}
 	}
@@ -112,13 +131,12 @@ func main() {
 	defer cancel()
 
 	gcs := StorageConnection{}
-	gcs.Ctx = ctx
 
-	if err := gcs.ConnectGCSClient(); err != nil {
+	if err := gcs.ConnectClient(ctx); err != nil {
 		log.Fatalf("Connect GCS failes: %v", err)
 	}
 
-	if err := gcs.CreateGCSBucket(); err != nil {
+	if err := gcs.CreateBucket(ctx); err != nil {
 		log.Fatalf("Create GCS Bucket failed: %v", err)
 	}
 }
