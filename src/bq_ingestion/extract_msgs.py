@@ -14,16 +14,18 @@
 
 import argparse
 import base64
-import chardet
-from datetime import timezone, datetime, timedelta
-from dateutil import parser
+from datetime import timezone
 import email
 import email.utils
 import gzip
-import json
+# import json
 import os
 import re
 import time
+
+import chardet
+from dateutil import parser
+
 
 from google.cloud import storage
 from google.cloud import bigquery
@@ -44,21 +46,20 @@ def chunks(l, n):
     # Create an index range for l of n items:
     yield l[i:i+n]
 
-def try_decode(string, codecs=['utf8', 'iso8859_1', 'iso8859_2']):
+def try_decode(string, additional_codecs=None):
   """try using various codecs in turn to decode a byte string"""
-  # temp testing... can I get the character encoding?
-  # Update: this does not seem accurate enough to be useful.
-  # enc = chardet.detect(string)
+
+  codecs = ['utf8', 'iso8859_1', 'iso8859_2']
+  if additional_codecs:
+    codecs = additional_codecs + codecs
+    # print('using codecs: {}'.format(codecs))
   exp = None
   for i in codecs:
     try:
       return string.decode(i)
-    except UnicodeDecodeError as e:
-      print('got decode error {} for codec {}, string {}'.format(e, i, string))
+    except (UnicodeDecodeError, LookupError) as e:
       exp = e
-      # time.sleep(10)
   print('cannot decode string {}'.format(string))
-  # time.sleep(5)
   raise exp
 
 def get_msgs(storage_client, bucketname, fpath):
@@ -155,10 +156,10 @@ def parse_datestring(datestring):
   date_object = None
   try:
     date_object = parser.parse(datestring)
-  except parser._parser.ParserError as err:
-    print('date parsing error: {}'.format(err))
-    datestring  = datestring.replace('.', ':')  # arghh/hmmm
-    print('---- parsing: {}'.format(datestring))
+  except parser._parser.ParserError:
+    # print('date parsing error: {}'.format(err))
+    datestring = datestring.replace('.', ':')  # arghh/hmmm
+    # print('---- parsing: {}'.format(datestring))
     try:
       m = re.search('(.* [-+]\d\d\d\d).*$', datestring)
       # print('tried: {}'.format('(.* [-+]\d\d\d\d).*$'))
@@ -197,18 +198,42 @@ def get_email_dicts(parsed_msgs):
     for e in msg:
       if e[0].lower() == 'date':  # convert to DATETIME-friendly utc time
         # store the raw string also, in case parsing issues, which happens in a few outlier cases
-        row_dict['raw_date_string'] = e[1].strip()
-        date_object = parse_datestring(e[1])
+        try:
+          row_dict['raw_date_string'] = e[1].strip()
+          date_object = parse_datestring(e[1])
+        except AttributeError as err:
+          print('for "date", got error: {}'.format(err))
+          dres = email.header.decode_header(e[1])
+          # print('dres: {}'.format(dres))
+          dres2 = try_decode(dres[0][0])
+          print('dres2: {}'.format(dres2))
+          row_dict['raw_date_string'] = dres2.strip()
+          date_object = parse_datestring(dres2)
+          time.sleep(10)
         if date_object:
           ds = date_object.astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
           row_dict['date'] = ds
       elif e[0].lower() == 'from':
         dres = email.header.decode_header(e[1])  # decode header
         if isinstance(dres[0][0], bytes):
+          print('dres: {}'.format(dres))
           dres_concat = b''
+          enc = None
           for x in dres:
             dres_concat += x[0]
-          dres2 = try_decode(dres_concat)
+            if x[1] and not x[1] == 'unknown-8bit':
+              enc = x[1]
+              if enc == 'latin-2':
+                enc = 'iso-8859-2'  # sigh
+              print('**************got header enc: {}'.format(enc))
+          if not enc:
+            enc = chardet.detect(dres_concat)['encoding']
+          if enc:
+            dres2 = try_decode(dres_concat, additional_codecs=[enc])
+          else:
+            dres2 = try_decode(dres_concat)
+          print('***for "from" {}: {}, got enc: {}\n with result {}'.format(e[1],
+              dres_concat, enc, dres2))
           if dres2:
             from_string = dres2.lower().strip()
           else:  # hmmmm
@@ -220,22 +245,32 @@ def get_email_dicts(parsed_msgs):
         from_addr = from_string.replace(' at ', '@')
         parsed_addr = email.utils.getaddresses([from_addr])
         # temp testing
-        if not parsed_addr[0][0]:
-          print('---** problematic addr?')
-          print('parsed_addr: {} from string {}'.format(parsed_addr, from_string))
-          time.sleep(5)
+        # if not parsed_addr[0][0]:
+        #   print('---** problematic addr?')
+        #   print('parsed_addr: {} from string {}'.format(parsed_addr, from_string))
+        #   time.sleep(2)
         # TODO: better error checks/handling? The raw string will still be stored.
         if parsed_addr[0][0]:
           row_dict['from_name'] = parsed_addr[0][0]
         if parsed_addr[0][1]:
           row_dict['from_email'] = parsed_addr[0][1]
+
       elif e[0].lower() == 'references':
-        refs_string = e[1].strip()
+        try:
+          refs_string = e[1].strip()
+        except AttributeError as err:
+          print('*******+++++++++++++++***********for {} got err: {}'.format(e[1], err))
+          refs_string = '{}'.format(e[1])
+          time.sleep(10)
         row_dict['references'] = refs_string
+        # TODO: there seems to be a rare case where there's info in parens following a ref,
+        # that prevents the regexp below from working properly. worth fixing?
         r1 = re.sub('>\s*<', '>|<', refs_string)
         refs = r1.split('|')
+        # print('got refs: {}', refs)
         refs_record = [{"ref": x} for x in refs]
         row_dict['refs'] = refs_record
+
       else:  # for the rest of the fields
         # BQ fields allow underscores but not hyphens
         k = (e[0]).lower().replace('-', '_')
@@ -243,30 +278,35 @@ def get_email_dicts(parsed_msgs):
           try:
             row_dict[k] = e[1].strip()  # get rid of any leading/trailing whitespace
           except AttributeError as err:
-            print('got error {} for {}'.format(err, e[1]))
+            print('for *{}*, got error {} for {}'.format(k, err, e[1]))
             print('trying decode method...')
             dres = email.header.decode_header(e[1])
-            dres2 = try_decode(dres[0][0])  # TODO: do I need to handle this same as above?
-            print('got dres2 {}'.format(dres2))
+            print('dres: {}'.format(dres))
+            enc = chardet.detect(dres[0][0])['encoding']
+            print('got enc: {}'.format(enc))
+            # TODO: do I need to handle substructure same as 'from' case above?
+            if enc:
+              dres2 = try_decode(dres[0][0], additional_codecs=[enc])
+            else:
+              dres2 = try_decode(dres[0][0])
+            print('got decoded result: {}'.format(dres2))
             if dres2:
               row_dict[k] = dres2.strip()
             else:
               row_dict[k] = '{}'.format(e[1]).lower().strip()
-            time.sleep(10)
+            time.sleep(5)
         else:
           if k not in IGNORED_FIELDS:
             print('****ignoring unsupported message field: {} in msg {}'.format(k, e))
             time.sleep(2)
 
-    # print('row dict: {}'.format(row_dict))
-    # time.sleep(2)
     json_rows.append(row_dict)
   return json_rows
 
 
 def messages_to_bigquery(json_rows, table_id, chunk_size):
-  """insert a list of message dicts into the given BQ table.  chunk_size determines how many are loaded
-  at once. (If the payload is too large, it will throw an error.)
+  """insert a list of message dicts into the given BQ table.  chunk_size determines how many
+  are loaded at once. (If the payload is too large, it will throw an error.)
   """
   client = bigquery.Client()
   table = client.get_table(table_id)
@@ -282,18 +322,20 @@ def messages_to_bigquery(json_rows, table_id, chunk_size):
 
 
 def main():
-  parser = argparse.ArgumentParser(description='BQ message ingestion')
-  parser.add_argument('--bucketname', required=True)
-  parser.add_argument('--chunk-size', type=int, default=200)
+  argparser = argparse.ArgumentParser(description='BQ message ingestion')
+  argparser.add_argument('--bucketname', required=True)
+  argparser.add_argument('--chunk-size', type=int, default=200)
   # for testing; if set, will process just this file, which must exist in the given bucket
-  parser.add_argument('--filename')
-  parser.add_argument('--table-id',  # table_id = "your-project.your_dataset.your_table"
-      default='project-ocean-281819.mail_archives.ingestion_test3')
+  argparser.add_argument('--filename')
+  argparser.add_argument('--table-id',  # table_id = "your-project.your_dataset.your_table"
+      default='project-ocean-281819.mail_archives.ingestion_test4')
   # include the '--ingest' flag to actually run the ingestion to BQ. Leave it out for testing.
-  parser.add_argument('--ingest', default=False, action='store_true')
-  parser.add_argument('--no-ingest', dest='ingest', action='store_false')
-  args = parser.parse_args()
+  argparser.add_argument('--ingest', default=False, action='store_true')
+  argparser.add_argument('--no-ingest', dest='ingest', action='store_false')
+  args = argparser.parse_args()
 
+  print('----using table: {}----'.format(args.table_id))
+  time.sleep(10)
   storage_client = storage.Client()
   if args.filename:  # for testing: process just this file
     fnames = [args.filename]
