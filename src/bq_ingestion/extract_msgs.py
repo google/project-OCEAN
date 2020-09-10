@@ -132,7 +132,8 @@ def get_msg_parts(msg):
         body = part.get_payload(decode=True)
         break
   else:
-      body = msg.get_payload(decode=True)
+    body = msg.get_payload(decode=True)
+  mparts = msg.items()
   # currently, writing both the decoded string and the base64-ified bytestring for the body,
   # to bigquery. (Did this b/c I wasn't confident in how the decoding was happening in all cases.
   # However, I think it may be essentially redundant.)
@@ -155,7 +156,7 @@ def parse_datestring(datestring):
   try:
     date_object = parser.parse(datestring)
   except parser._parser.ParserError as err:
-    print(err)
+    print('date parsing error: {}'.format(err))
     datestring  = datestring.replace('.', ':')  # arghh/hmmm
     print('---- parsing: {}'.format(datestring))
     try:
@@ -201,12 +202,31 @@ def get_email_dicts(parsed_msgs):
         if date_object:
           ds = date_object.astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
           row_dict['date'] = ds
-      elif e[0].lower() == 'from':
-        from_string = e[1].lower().strip()
+      elif e[0].lower() == 'from':  # TODO: ughh, clean up this section
+        # print('------------orig string {}'.format(e[1]))
+        # print('trying decode method...')
+        dres = email.header.decode_header(e[1])
+        # print('dres: {}'.format(dres))
+        if isinstance(dres[0][0], bytes):
+          dres_concat = b''
+          for x in dres:
+            dres_concat += x[0]
+          dres2 = try_decode(dres_concat)
+          if dres2:
+            from_string = dres2.lower().strip()
+          else:  # hmmmm
+            from_string = '{}'.format(e[1]).lower().strip()
+        else:
+          from_string = dres[0][0].lower().strip()
         row_dict['raw_from_string'] = from_string
         # some of the archives use the ' at ' syntax to encode the email addresses.
         from_addr = from_string.replace(' at ', '@')
         parsed_addr = email.utils.getaddresses([from_addr])
+        # v v temp
+        print('parsed_addr: {} from string {}'.format(parsed_addr, from_string))
+        if not parsed_addr[0][0]:
+          print('---** problematic addr?')
+          time.sleep(10)
         # TODO: better error checks/handling?  If either is not set, the other (apparently) is
         # often wrong. The raw string will still be stored. Not sure if this is the best approach...
         if parsed_addr[0][0]:
@@ -228,8 +248,14 @@ def get_email_dicts(parsed_msgs):
             row_dict[k] = e[1].strip()  # get rid of any leading/trailing whitespace
           except AttributeError as err:
             print('got error {} for {}'.format(err, e[1]))
-            print('with type {}'.format(type(e[1])))
-            row_dict[k] = e[1]  # store the non-stripped v instead...
+            print('trying decode method...')
+            dres = email.header.decode_header(e[1])
+            dres2 = try_decode(dres[0][0])
+            print('got dres2 {}'.format(dres2))
+            if dres2:
+              row_dict[k] = dres2.strip()
+            else:
+              row_dict[k] = '{}'.format(e[1]).lower().strip()
             time.sleep(10)
         else:
           if k not in IGNORED_FIELDS:
