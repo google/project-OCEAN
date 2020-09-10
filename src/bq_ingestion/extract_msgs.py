@@ -187,7 +187,7 @@ def parse_datestring(datestring):
             print('**********failed to parse datestring {}'.format(datestring))
   return date_object
 
-
+# TODO: ughh, clean up this fcn
 def get_email_dicts(parsed_msgs):
   """takes a list of message objects, and turns them into json dicts for insertion into BQ."""
   json_rows = []
@@ -202,11 +202,8 @@ def get_email_dicts(parsed_msgs):
         if date_object:
           ds = date_object.astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
           row_dict['date'] = ds
-      elif e[0].lower() == 'from':  # TODO: ughh, clean up this section
-        # print('------------orig string {}'.format(e[1]))
-        # print('trying decode method...')
-        dres = email.header.decode_header(e[1])
-        # print('dres: {}'.format(dres))
+      elif e[0].lower() == 'from':
+        dres = email.header.decode_header(e[1])  # decode header
         if isinstance(dres[0][0], bytes):
           dres_concat = b''
           for x in dres:
@@ -219,16 +216,15 @@ def get_email_dicts(parsed_msgs):
         else:
           from_string = dres[0][0].lower().strip()
         row_dict['raw_from_string'] = from_string
-        # some of the archives use the ' at ' syntax to encode the email addresses.
+        # the pipermail archives use the ' at ' syntax to encode the email addresses.
         from_addr = from_string.replace(' at ', '@')
         parsed_addr = email.utils.getaddresses([from_addr])
-        # v v temp
-        print('parsed_addr: {} from string {}'.format(parsed_addr, from_string))
+        # temp testing
         if not parsed_addr[0][0]:
           print('---** problematic addr?')
-          time.sleep(10)
-        # TODO: better error checks/handling?  If either is not set, the other (apparently) is
-        # often wrong. The raw string will still be stored. Not sure if this is the best approach...
+          print('parsed_addr: {} from string {}'.format(parsed_addr, from_string))
+          time.sleep(5)
+        # TODO: better error checks/handling? The raw string will still be stored.
         if parsed_addr[0][0]:
           row_dict['from_name'] = parsed_addr[0][0]
         if parsed_addr[0][1]:
@@ -240,17 +236,17 @@ def get_email_dicts(parsed_msgs):
         refs = r1.split('|')
         refs_record = [{"ref": x} for x in refs]
         row_dict['refs'] = refs_record
-      else:
+      else:  # for the rest of the fields
         # BQ fields allow underscores but not hyphens
         k = (e[0]).lower().replace('-', '_')
-        if k in ALLOWED_FIELDS:  # TODO: make this more efficient?
+        if k in ALLOWED_FIELDS:
           try:
             row_dict[k] = e[1].strip()  # get rid of any leading/trailing whitespace
           except AttributeError as err:
             print('got error {} for {}'.format(err, e[1]))
             print('trying decode method...')
             dres = email.header.decode_header(e[1])
-            dres2 = try_decode(dres[0][0])
+            dres2 = try_decode(dres[0][0])  # TODO: do I need to handle this same as above?
             print('got dres2 {}'.format(dres2))
             if dres2:
               row_dict[k] = dres2.strip()
