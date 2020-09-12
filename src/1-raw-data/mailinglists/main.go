@@ -19,12 +19,13 @@ This package is for loading different mailing list data types into Cloud Storage
 package main
 
 import (
-	"1-raw-data/gcs"
-	"1-raw-data/mailinglists/mailman"
-	"1-raw-data/mailinglists/pipermail"
 	"context"
 	"flag"
 	"log"
+
+	"github.com/google/project-OCEAN/src/1-raw-data/gcs"
+	"github.com/google/project-OCEAN/src/1-raw-data/mailinglists/mailman"
+	"github.com/google/project-OCEAN/src/1-raw-data/mailinglists/pipermail"
 )
 
 var (

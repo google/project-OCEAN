@@ -24,12 +24,13 @@ package pipermail
 // Run this monthly at start of new month to pull all new data
 
 import (
-	"1-raw-data/gcs"
 	"context"
 	"fmt"
-	"github.com/PuerkitoBio/goquery"
 	"net/http"
 	"strings"
+
+	"github.com/PuerkitoBio/goquery"
+	"github.com/google/project-OCEAN/src/1-raw-data/gcs"
 )
 
 // Get, parse and store Pipermail data in GCS.
