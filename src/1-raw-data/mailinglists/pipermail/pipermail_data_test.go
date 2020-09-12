@@ -15,13 +15,14 @@
 package pipermail
 
 import (
-	"1-raw-data/gcs"
 	"context"
 	"errors"
 	"fmt"
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/google/project-OCEAN/src/1-raw-data/gcs"
 )
 
 type fakeStorageConnection struct {

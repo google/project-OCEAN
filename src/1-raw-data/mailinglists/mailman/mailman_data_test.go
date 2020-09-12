@@ -15,7 +15,6 @@
 package mailman
 
 import (
-	"1-raw-data/gcs"
 	"context"
 	"errors"
 	"fmt"
@@ -23,6 +22,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/google/project-OCEAN/src/1-raw-data/gcs"
 )
 
 type fakeStorageConnection struct {
