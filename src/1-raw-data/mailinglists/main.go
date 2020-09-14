@@ -19,12 +19,13 @@ This package is for loading different mailing list data types into Cloud Storage
 package main
 
 import (
-	"1-raw-data/gcs"
-	"1-raw-data/mailinglists/mailman"
-	"1-raw-data/mailinglists/pipermail"
 	"context"
 	"flag"
 	"log"
+
+	"github.com/google/project-OCEAN/src/1-raw-data/gcs"
+	"github.com/google/project-OCEAN/src/1-raw-data/mailinglists/mailman"
+	"github.com/google/project-OCEAN/src/1-raw-data/mailinglists/pipermail"
 )
 
 var (
@@ -42,27 +43,30 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	gcs := gcs.StorageConnection{
+	var storage gcs.Connection
+
+	storageConn := gcs.StorageConnection{
 		BucketName: *bucketName,
 		ProjectID:  *projectID,
 	}
-	gcs.Ctx = ctx
 
-	if err := gcs.ConnectGCSClient(); err != nil {
+	if err := storageConn.ConnectClient(ctx); err != nil {
 		log.Fatalf("Connect GCS failes: %v", err)
 	}
 
-	if err := gcs.CreateGCSBucket(); err != nil {
+	if err := storageConn.CreateBucket(ctx); err != nil {
 		log.Fatalf("Create GCS Bucket failed: %v", err)
 	}
 
+	storage = &storageConn
+
 	switch *mailingList {
 	case "piper":
-		if err := pipermail.GetMailingListData(gcs, *mailingListURL); err != nil {
+		if err := pipermail.GetPipermailData(ctx, storage, *mailingListURL); err != nil {
 			log.Fatalf("Mailman load failed: %v", err)
 		}
 	case "mailman":
-		if err := mailman.GetMailmanData(gcs, *mailingListURL, *startDate, *endDate); err != nil {
+		if err := mailman.GetMailmanData(ctx, storage, *mailingListURL, *startDate, *endDate); err != nil {
 			log.Fatalf("Mailman load failed: %v", err)
 		}
 	default:

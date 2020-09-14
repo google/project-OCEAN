@@ -1,4 +1,6 @@
 .idea/
+out/
+vendor/
 
 # Compiled source #
 ###################
