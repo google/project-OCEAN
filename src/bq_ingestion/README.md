@@ -38,7 +38,8 @@ Some questions:
 As we add files to the archive buckets, we can use GCS notifications to trigger running a Cloud Function that kicks off the script with the new files.
 
 ## TODOs
-(in addition to general script cleanup).
+
+(in addition to general script cleanup & tests).
 
 - add the ability to pass list of files to the script to process (currently, is either single file or whole bucket).
 - Create and check in GCF definition/setup instructions, for processing new archive files.
