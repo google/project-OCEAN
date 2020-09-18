@@ -1,10 +1,10 @@
 # Mail archive ingestion and processing
 
-(In progress. Scripts work but need cleanup and are not yet ready for review).
+(In progress. Scripts work but need cleanup and are not yet ready for review.  See also [`issues_and_notes.md`][1]).
 
 ## ingestion script
 
-The [`extract_msgs.py`][1] script reads the `pipermail` and `mailman` archives, parses the message info, and inserts the info into a bigquery table. The script assumes the schema here: [`table_schema.json`][2].
+The [`extract_msgs.py`][2] script reads the `pipermail` and `mailman` archives, parses the message info, and inserts the info into a bigquery table. The script assumes the schema here: [`table_schema.json`][3].
 
 Some known issues/glitches, not all of which are probably worth fixing.
 **Text encodings:**
@@ -18,7 +18,7 @@ Some known issues/glitches, not all of which are probably worth fixing.
 
 ### About the BQ table schema
 
-The table schema is here: [`table_schema.json`][3].
+The table schema is here: [`table_schema.json`][4].
 Some things to note:
 - the `references` header is both stored as a string, and as a ‘repeated record’, where each ref is parsed out individually. (Note: the mailman archives don’t seem to have a ‘references’ field).
 - See the notes above regarding storage of the raw ‘date’ and ‘from’ strings as well as their parsed info.
@@ -29,7 +29,7 @@ Some things to note:
 
 #### Schema & table considerations
 Some questions:
-- Do we want to [_partition_][4] the tables by date?
+- Do we want to [_partition_][5] the tables by date?
 - Is there any reason to create separate tables for the separate archive sources? (‘list’ source is preserved as a field in the records).  Currently, this doesn’t seem necessary.
 
 ### Running the script
@@ -41,9 +41,9 @@ As we add files to the archive buckets, we can use GCS notifications to trigger 
 
 ## ‘entity extraction’ scripts
 
-The [`dataflow_names_emails.py`][5] script is a Beam/Dataflow pipeline that finds all the names associated with an email, and all the emails associated with a name, and outputs the results to two tables. 
+The [`dataflow_names_emails.py`][6] script is a Beam/Dataflow pipeline that finds all the names associated with an email, and all the emails associated with a name, and outputs the results to two tables. 
 
-The [`extract_entities.py`][6] script is an experiment in progress, to play with ways to identify the names and emails for a given person and aggregate them to create ‘entities’.  As an example of where this would be useful, see this query:
+The [`extract_entities.py`][7] script is an experiment in progress, to play with ways to identify the names and emails for a given person and aggregate them to create ‘entities’.  As an example of where this would be useful, see this query:
 
 ```sql
 SELECT from_name, from_email
@@ -51,7 +51,7 @@ FROM `project-ocean-281819.mail_archives.names_emails`
 WHERE REGEXP_CONTAINS(from_name, 'warsaw')
 ```
 
-This is the query result.  
+This is the query result— where not a given email is not associated with all given display names, and for a given display name, not all emails are used.
 <figure>
 <a href="https://storage.googleapis.com/amy-jo/images/Screen%20Shot%202020-09-18%20at%2011.18.26%20AM.png" target="_blank"><img src="https://storage.googleapis.com/amy-jo/images/Screen%20Shot%202020-09-18%20at%2011.18.26%20AM.png" width="40%"/></a>
 <figcaption><br/><i><small>The same person may use many different email addresses and names.</small></i></figcaption>
@@ -68,9 +68,10 @@ The entity extraction script dumps its results into a BQ table.
 - Create and check in GCF definition/setup instructions, for processing new archive files.
 
 
-[1]:	./extract_msgs.py
-[2]:	./table_schema.json
+[1]:	./issues_and_notes.md
+[2]:	./extract_msgs.py
 [3]:	./table_schema.json
-[4]:	https://cloud.google.com/bigquery/docs/partitioned-tables
-[5]:	./dataflow/dataflow_names_emails.py
-[6]:	./extract_entities.py
+[4]:	./table_schema.json
+[5]:	https://cloud.google.com/bigquery/docs/partitioned-tables
+[6]:	./dataflow/dataflow_names_emails.py
+[7]:	./extract_entities.py

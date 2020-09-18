@@ -26,8 +26,6 @@ name, e.g. "Bob", but we don't want to assume that all "Bob"s are the same perso
 import argparse
 import pprint
 import uuid
-# import json
-# import os
 import re
 import time
 
@@ -64,36 +62,53 @@ def get_emails_for_name(client, table_id, name, uid, uids, email_hash, name_hash
   entity = uids[uid]
   entity_emails = entity['emails']
 
-  try:  # TODO: arghh, what is the right way to do this?
-    qname = name.replace("'", r"\'")
-    query = "SELECT from_name, emails FROM {} where from_name = '{}'".format(table_id, qname)
-    query_job = client.query(query)
-  except google.api_core.exceptions.BadRequest as err:
+  qname = name.replace("'", r"\'")
+  query = "SELECT from_name, emails FROM {} where from_name = '{}'".format(table_id, qname)
+  # print('trying query: {}'.format(query))
+  query_job = client.query(query)
+  try:
+    for row in query_job:  # should just be 1?
+      # print(f'row: {row}')
+      print('in get_emails_for_name: {}, {}'.format(row['from_name'], row['emails']))
+      for email in row['emails']:
+        if not email in email_hash:
+          print('email {} is new'.format(email))
+          email_hash[email] = set([uid])
+        else:  # we've already seen the email
+          euids = email_hash[email]  # get its existing uids
+          euids.add(uid)
+          email_hash[email] = euids
+        entity_emails.add(email)
+  except Exception as err:  # TODO: ughh, clean this up
+    print(err)
     qname = name.replace('"', r'\"')
     query = 'SELECT from_name, emails FROM {} where from_name = "{}"'.format(table_id, qname)
+    print('okay, NOW trying query {}'.format(query))
     query_job = client.query(query)
-  for row in query_job:  # should just be 1?
-    print('in get_emails_for_name: {}, {}'.format(row['from_name'], row['emails']))
-    for email in row['emails']:
-      if not email in email_hash:
-        print('email {} is new'.format(email))
-        email_hash[email] = set([uid])
-        # print('after new add in gefn, email hash: {}'.format(email_hash))
-      else:  # we've already seen the email
-        euids = email_hash[email]  # get its existing uids
-        # print('in gefn, existing email {}: email hash: {}'.format(email, email_hash))
-        # print('--------euids: {} for {}'.format(euids, email))
-        euids.add(uid)
-        email_hash[email] = euids
-        # print('=-=-=-=arggh, now email hash is {}'.format(email_hash))
-      entity_emails.add(email)
+    try:
+      for row in query_job:  # should just be 1?
+        print(f'row: {row}')
+        print('in get_emails_for_name: {}, {}'.format(row['from_name'], row['emails']))
+        for email in row['emails']:
+          if not email in email_hash:
+            print('email {} is new'.format(email))
+            email_hash[email] = set([uid])
+          else:  # we've already seen the email
+            euids = email_hash[email]  # get its existing uids
+            euids.add(uid)
+            email_hash[email] = euids
+          entity_emails.add(email)    
+    except Exception as err2:
+      print(err2)
+      print(f'****failed to query for {name}')
+
   entity['emails'] = entity_emails
   uids[uid] = entity  # is this necessary?
 
 
 def process_emails(args, client, table_id, uids, email_hash, name_hash):
 
-  query = 'SELECT from_email, names FROM {} limit 5000'.format(table_id)
+  query = 'SELECT from_email, names FROM {}'.format(table_id)
   query_job = client.query(query)  # Make an API request.
   i = 0
   for row in query_job:
@@ -107,7 +122,11 @@ def process_emails(args, client, table_id, uids, email_hash, name_hash):
       uids[uid] = {'emails': set([email]), 'names': set(row['names'])}
     else:
       euids = email_hash[email]
-      uid = list(euids)[0]
+      uid = list(euids)[0]  # get existing UID
+      uid_emails = uids[uid]['emails']
+      uid_names = uids[uid]['names']
+      uids[uid] = {'emails': uid_emails.union(set([email])), 
+          'names': uid_names.union(set(row['names']))}
 
     if 'spam' in email or 'foo' in email:
       name_uid = None
@@ -167,6 +186,8 @@ def main():
       default='aju-vtests2.mail_archives.names_email_test3')
   argparser.add_argument('--entities-table-id', required=True)
   argparser.add_argument('--chunk-size', type=int, default=200)
+  argparser.add_argument('--ingest', default=False, action='store_true')
+  argparser.add_argument('--no-ingest', dest='ingest', action='store_false')  
   args = argparser.parse_args()
 
   uids = {}
@@ -177,7 +198,11 @@ def main():
   process_emails(args, client, args.names_for_email_id, uids, email_hash, name_hash)
 
   dump_entities(uids)
-  write_entities_to_bq(uids, args.entities_table_id, args.chunk_size)
+  # temp testing
+  # print('name_hash: {}\n'.format(name_hash))
+  # print('email_hash: {}'.format(email_hash))
+  if args.ingest:
+    write_entities_to_bq(uids, args.entities_table_id, args.chunk_size)
 
 if __name__ == "__main__":
   main()
