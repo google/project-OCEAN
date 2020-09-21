@@ -23,7 +23,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/project-OCEAN/src/1-raw-data/gcs"
+	"github.com/google/project-OCEAN/1-raw-data/gcs"
 )
 
 type fakeStorageConnection struct {

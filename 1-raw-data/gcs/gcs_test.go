@@ -16,14 +16,15 @@ package gcs
 
 import (
 	"bytes"
-	"cloud.google.com/go/storage"
 	"context"
 	"errors"
 	"fmt"
-	"github.com/googleapis/google-cloud-go-testing/storage/stiface"
-	"google.golang.org/api/iterator"
 	"strings"
 	"testing"
+
+	"cloud.google.com/go/storage"
+	"github.com/googleapis/google-cloud-go-testing/storage/stiface"
+	"google.golang.org/api/iterator"
 )
 
 type fakeClient struct {

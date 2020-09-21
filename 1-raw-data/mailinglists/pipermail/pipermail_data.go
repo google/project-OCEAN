@@ -30,7 +30,7 @@ import (
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/google/project-OCEAN/src/1-raw-data/gcs"
+	"github.com/google/project-OCEAN/1-raw-data/gcs"
 )
 
 // Get, parse and store Pipermail data in GCS.
