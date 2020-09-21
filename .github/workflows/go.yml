@@ -31,7 +31,7 @@ jobs:
         fi
 
     - name: Build
-      run: go build -v ./src/1-raw-data/mailinglists/
+      run: go build -v ./1-raw-data/mailinglists/
 
     - name: Test
-      run: go test -v ./src/1-raw-data/mailinglists/
+      run: go test -v ./1-raw-data/mailinglists/
