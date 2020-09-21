@@ -23,9 +23,9 @@ import (
 	"flag"
 	"log"
 
-	"github.com/google/project-OCEAN/src/1-raw-data/gcs"
-	"github.com/google/project-OCEAN/src/1-raw-data/mailinglists/mailman"
-	"github.com/google/project-OCEAN/src/1-raw-data/mailinglists/pipermail"
+	"github.com/google/project-OCEAN/1-raw-data/gcs"
+	"github.com/google/project-OCEAN/1-raw-data/mailinglists/mailman"
+	"github.com/google/project-OCEAN/1-raw-data/mailinglists/pipermail"
 )
 
 var (

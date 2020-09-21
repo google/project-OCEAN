@@ -29,7 +29,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/project-OCEAN/src/1-raw-data/gcs"
+	"github.com/google/project-OCEAN/1-raw-data/gcs"
 )
 
 // Check dates used in the Mailman filename have value, are not the same and that start before end.
