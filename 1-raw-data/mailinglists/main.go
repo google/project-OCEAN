@@ -24,14 +24,15 @@ import (
 	"log"
 
 	"github.com/google/project-OCEAN/1-raw-data/gcs"
+	"github.com/google/project-OCEAN/1-raw-data/mailinglists/googlegroups"
 	"github.com/google/project-OCEAN/1-raw-data/mailinglists/mailman"
 	"github.com/google/project-OCEAN/1-raw-data/mailinglists/pipermail"
 )
 
 var (
 	projectID      = flag.String("project-id", "", "project id")
-	bucketName     = flag.String("bucket-name", "", "bucket name to store files")
-	mailingList    = flag.String("mailinglist", "piper", "Choose which mailing list to process either piper (default), mailman")
+	bucketName     = flag.String("bucket-name", "test", "bucket name to store files")
+	mailingList    = flag.String("mailinglist", "piper", "Choose which mailing list to process either piper (default), mailman, googlegroups")
 	mailingListURL = flag.String("mailinglist-url", "", "mailing list url to pull files from")
 	startDate      = flag.String("start-date", "", "Start date in format of year-month-date and 4dig-2dig-2dig")
 	endDate        = flag.String("end-date", "", "End date in format of year-month-date and 4dig-2dig-2dig")
@@ -68,6 +69,11 @@ func main() {
 	case "mailman":
 		if err := mailman.GetMailmanData(ctx, storage, *mailingListURL, *startDate, *endDate); err != nil {
 			log.Fatalf("Mailman load failed: %v", err)
+		}
+	case "googlegroups":
+		// TODO pass in org, group info and worker info
+		if err := googlegroups.GetGoogleGroupsData(ctx, "", "golang-checkins", storage, 1); err != nil {
+			log.Fatalf("GoogleGroups load failed: %v", err)
 		}
 	default:
 		log.Fatalf("Mailing list %v is not an option. Change the option submitted.: ", mailingList)

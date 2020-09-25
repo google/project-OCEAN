@@ -36,7 +36,6 @@ import (
 // Get, parse and store Pipermail data in GCS.
 func GetPipermailData(ctx context.Context, storage gcs.Connection, mailingListURL string) (storageErr error) {
 	response, err := http.Get(mailingListURL)
-
 	if err != nil {
 		return fmt.Errorf("HTTP response returned an error: %w", err)
 	}
@@ -52,7 +51,7 @@ func GetPipermailData(ctx context.Context, storage gcs.Connection, mailingListUR
 				if check[len] == "gz" {
 					if strings.Split(filename, ":")[0] != "https" {
 						url := fmt.Sprintf("%v%v", mailingListURL, filename)
-						if err := storage.StoreInBucket(ctx, filename, url); err != nil {
+						if err := storage.StoreURLContentInBucket(ctx, filename, url); err != nil {
 							// Each func interface doesn't allow passing errors?
 							storageErr = fmt.Errorf("GCS storage failed: %w", err)
 						}
