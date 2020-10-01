@@ -19,7 +19,7 @@ We are focused on studying the following ecosystems.
 ## Project Datasets 
 We are collecting a list of datasets that would be useful for this project based on our ecosystem focus. The link below provides the latest list which is an ongoing work in progress. 
 
-[OCEAN Open Soruce Ecosystem Data Map](https://docs.google.com/spreadsheets/d/e/2PACX-1vROZwJ7Bzzp58XHnS1LlfeJ5aLhKCugp9IzgaX5jCtZ9vki42Xrfy55HxJKAsrrDx1zZss4EsvbiQMX/pubhtml?gid=0&single=true)
+**[OCEAN Open Source Ecosystem Data Map](https://docs.google.com/spreadsheets/d/e/2PACX-1vROZwJ7Bzzp58XHnS1LlfeJ5aLhKCugp9IzgaX5jCtZ9vki42Xrfy55HxJKAsrrDx1zZss4EsvbiQMX/pubhtml?gid=0&single=true)**
 
 If you know of a dataset that should be on the list or have updates to recommend, for now submit an Issue with as much of the following information that you have:
 
@@ -39,7 +39,7 @@ If you know of a dataset that should be on the list or have updates to recommend
 
 ## OCEAN External Faculty Program
 
-If you want to particpate in prioritizing the datasets we capture for research and collaborate with researchers on this effort then apply to the [OCEAN Vermont Exernal Faculty Program](https://github.com/Vermont-OCEAN) to join the research group.
+If you want to particpate in prioritizing the datasets we capture for research and collaborate with researchers on this effort there will be a process to apply to join the group. More details will be posted when we have them. For insights into the group checkout [OCEAN Vermont Exernal Faculty Program](https://github.com/Vermont-OCEAN).
 
 ## Contributing
 We welcome outside contributions to the project especially considering we are studying open source communities. Junior and senior contributors are all welcome. We have a list of Issues that provide ideas on where to start. Feel free to send in PRs if you have something to change or add. Checkout the [Contributing](https://github.com/google/project-OCEAN/blob/master/CONTRIBUTING.md) page for more information on how to participate.
