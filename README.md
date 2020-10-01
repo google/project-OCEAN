@@ -16,6 +16,31 @@ We are focused on studying the following ecosystems.
 - Node
 - Python
 
+## Project Datasets 
+We are collecting a list of datasets that would be useful for this project based on our ecosystem focus. The link below provides the latest list which is an ongoing work in progress. 
+
+**[OCEAN Open Source Ecosystem Data Map](https://docs.google.com/spreadsheets/d/e/2PACX-1vROZwJ7Bzzp58XHnS1LlfeJ5aLhKCugp9IzgaX5jCtZ9vki42Xrfy55HxJKAsrrDx1zZss4EsvbiQMX/pubhtml?gid=0&single=true)**
+
+If you know of a dataset that should be on the list or have updates to recommend, for now submit an Issue with as much of the following information that you have:
+
+- Dataset Name 
+- Brief Description
+- EcoSystem
+- Data Category (governance model, source code, issue tracker, project docs, release infra, package repo, package manager, social board, community org)
+- Raw Data Location (where is it stored)
+- Size (GB/TB/?) - (if you record a different size, note it next to the number)
+- Accessible (How can we access it either API or scrape with permission or no access option or something else)
+- Start Date (When it started being collected - at a minimum what year)
+- End Date (When it stopped being collected or note today if its kept current - at a minimum what year)
+- Update Frequence (How often its updated - daily, monthly, etc)
+- Reference Links (especially dataset schema and other info that is useful)
+- Other Info
+
+
+## OCEAN External Faculty Program
+
+If you want to particpate in prioritizing the datasets we capture for research and collaborate with researchers on this effort there will be a process to apply to join the group. More details will be posted when we have them. For insights into the group checkout [OCEAN Vermont Exernal Faculty Program](https://github.com/Vermont-OCEAN).
+
 ## Contributing
 We welcome outside contributions to the project especially considering we are studying open source communities. Junior and senior contributors are all welcome. We have a list of Issues that provide ideas on where to start. Feel free to send in PRs if you have something to change or add. Checkout the [Contributing](https://github.com/google/project-OCEAN/blob/master/CONTRIBUTING.md) page for more information on how to participate.
 
