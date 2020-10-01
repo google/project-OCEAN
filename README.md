@@ -1,4 +1,6 @@
 # Project OCEAN &#129446;
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![made-with-Go](https://img.shields.io/badge/Made%20with-Go-1f425f.svg)](http://golang.org) [![made-with-python](https://img.shields.io/badge/Made%20with-Python-1f425f.svg)](https://www.python.org/)
+
 
 "This is not an officially supported Google product"
 
@@ -14,6 +16,8 @@ We are focused on studying the following ecosystems.
 - Node
 - Python
 
+## Contributing
+We welcome outside contributions to the project especially considering we are studying open source communities. Junior and senior contributors are all welcome. We have a list of Issues that provide ideas on where to start. Feel free to send in PRs if you have something to change or add. Checkout the [Contributing](https://github.com/google/project-OCEAN/blob/master/CONTRIBUTING.md) page for more information on how to participate.
 
 ## Resources
 Listing of resources related to this project.
