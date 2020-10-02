@@ -16,11 +16,17 @@ package googlegroups
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/PuerkitoBio/goquery"
 	"github.com/google/project-OCEAN/1-raw-data/gcs"
 )
 
@@ -43,11 +49,281 @@ func (gcs *fakeStorageConnection) StoreInBucket(ctx context.Context, fileName, u
 	return
 }
 
-func TestGetMonthYearKey(t *testing.T) {}
-func TestGetTotalTopics(t *testing.T) {}
-func TestGetToipcIDsFromUrl(t *testing.T) {}
-func TestGetMsgIDsFromUrl(t *testing.T) {}
-func TestListTopicIDListByMonth(t *testing.T) {}
+//func () httpDomResponse(url string) (dom *goquery.Document, err error) {
+//
+//	if url == "" {
+//		exCorrectResponseBody := `
+//	<html>
+//  <td class="subject">
+//  <a href="https://groups.google.com/d/topic/golang-checkins/8sv65_WCOS4" title="[tools] internal/lsp/cache: use gopls.mod for the workspace module if it exists">[tools] internal/lsp/cache: use gopls.mod for the workspace module if it exists</a>
+//  </td>
+//  <td class="lastPostDate">11:20 AM</td>
+//  </html>
+//`
+//		return goquery.NewDocumentFromReader(strings.NewReader(exCorrectResponseBody))
+//	}
+//}
+
+func fakeHTTPResponse() (response string) {
+	//handler := func(w http.ResponseWriter, r *http.Request) {
+	//	io.WriteString(w, "ping")
+	//}
+	//
+	//req := httptest.NewRequest("GET", "http://example.com/foo", nil)
+	//w := httptest.NewRecorder()
+	//handler(w, req)
+	//
+	//resp := w.Result()
+	//body, _ := ioutil.ReadAll(resp.Body)
+	//
+	//fmt.Println(resp.StatusCode)
+	//fmt.Println(string(body))
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		//fmt.Fprintln(w, "I am a super server")
+		response = fmt.Sprintf("I am a super server")
+	}))
+	defer ts.Close()
+	return
+}
+
+// TODO test for error?
+func TestGetMonthYearKey(t *testing.T) {
+	var gotDateKey string
+	var gotErr error
+
+	tests := []struct {
+		comparisonType string
+		matchDate      string
+		wantDateKey    string
+		wantErr        error
+	}{
+		{
+			// Confirm correct output with 1 dig month and 1 dig day
+			comparisonType: "Single digit month and single digit day",
+			matchDate:      "1/29/91",
+			wantDateKey:    "1991-01",
+			wantErr:        nil,
+		},
+		{
+			// Confirm correct output with 2 dig month and 1 dig day and not future
+			comparisonType: "Double digit month and Single digit day",
+			matchDate:      "9/2/38",
+			wantDateKey:    "1938-09",
+			wantErr:        nil,
+		},
+		{
+			// Confirm correct output with 1 dig month and 2 dig day
+			comparisonType: "Single digit month and double digit day",
+			matchDate:      "1/24/95",
+			wantDateKey:    "1995-01",
+			wantErr:        nil,
+		},
+		{
+			// Confirm correct output with 2 dig month and 2 dig day
+			comparisonType: "Double digit month and double digit day",
+			matchDate:      "11/11/17",
+			wantDateKey:    "2017-11",
+			wantErr:        nil,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.comparisonType, func(t *testing.T) {
+			if gotDateKey, gotErr = getMonthYearKey(test.matchDate); !errors.Is(gotErr, test.wantErr) {
+				t.Errorf("Error response does not match.\n got: %v\nwant: %v", gotErr, test.wantErr)
+			}
+			if strings.Compare(gotDateKey, test.wantDateKey) != 0 {
+				t.Errorf("DateKey response does not match.\n got: %v\nwant: %v", gotDateKey, test.wantDateKey)
+			}
+		})
+	}
+}
+
+func TestGetTotalTopics(t *testing.T) {
+	exCorrectResponseBody := `
+	<html>
+	<head>
+		<title>My document</title>
+	</head>
+		<i>Showing 1-100 of 1891 topics</i>
+  </html>
+		`
+	exMissingResponseBody := `
+	<html>
+	<head>
+		<title>My document</title>
+	</head>
+  </html>
+		`
+	exCorrectDom, _ := goquery.NewDocumentFromReader(strings.NewReader(exCorrectResponseBody))
+	exMissingDom, _ := goquery.NewDocumentFromReader(strings.NewReader(exMissingResponseBody))
+
+	var (
+		gotTotalTopics int
+		gotErr         error
+	)
+
+	tests := []struct {
+		comparisonType  string
+		dom             *goquery.Document
+		wantTotalTopics int
+		wantErr         error
+	}{
+		{
+			// Confirm correct output with 1 dig month and 1 dig day
+			comparisonType:  "Test regex to read total topics.",
+			dom:             exCorrectDom,
+			wantTotalTopics: 1891,
+			wantErr:         nil,
+		},
+		{
+			// Confirm correct output with 1 dig month and 1 dig day
+			comparisonType:  "Test regex if info does not exist.",
+			dom:             exMissingDom,
+			wantTotalTopics: 0,
+			wantErr:         nil,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.comparisonType, func(t *testing.T) {
+			if gotTotalTopics, gotErr = getTotalTopics(test.dom); !errors.Is(gotErr, test.wantErr) {
+				t.Errorf("Error response does not match.\n got: %v\nwant: %v", gotErr, test.wantErr)
+			}
+			if gotTotalTopics != test.wantTotalTopics {
+				t.Errorf("Total topic response does not match.\n got: %v\nwant: %v", gotTotalTopics, test.wantTotalTopics)
+			}
+		})
+	}
+}
+
+func TestGetToipcIDsFromDom(t *testing.T) {
+	timeMonthCheck, timeYearCheck := time.Now().Month(), time.Now().Year()
+
+	exTopicIDResponseTime := `
+	<html>
+	<table>
+	<tr><td class="subject"><a href="https://groups.google.com/d/topic/golang-checkins/8sv65_WCOS4" title="[tools] internal/lsp/cache: use gopls.mod for the workspace module if it exists">[tools] internal/lsp/cache: use gopls.mod for the workspace module if it exists</a></td><td class="lastPostDate">11:20 AM</td></tr>
+	</table>
+  </html>
+`
+	exTopicIDResponseDate := `
+	<html>
+	<table>
+	<tr><td class="subject"><a href="https://groups.google.com/d/topic/golang-checkins/8sv65_WCOS4" title="[tools] internal/lsp/cache: use gopls.mod for the workspace module if it exists">[tools] internal/lsp/cache: use gopls.mod for the workspace module if it exists</a></td><td class="lastPostDate">9/27/18</td></tr>
+	</table>
+  </html>
+`
+
+	exEOFExistsResponse := `<a href="https://en.wikipedia.org/wiki/Lili%CA%BBuokalani">More topics »</a>`
+
+	exTopicIdDomTime, _ := goquery.NewDocumentFromReader(strings.NewReader(exTopicIDResponseTime))
+	exTopicIdDomDate, _ := goquery.NewDocumentFromReader(strings.NewReader(exTopicIDResponseDate))
+	exEOFDom, _ := goquery.NewDocumentFromReader(strings.NewReader(exEOFExistsResponse))
+
+	var (
+		gotTopicIDS map[string][]string
+		gotErr      error
+	)
+	tests := []struct {
+		comparisonType string
+		group          string
+		dom            *goquery.Document
+		wantEOF        bool
+		wantTopicIDS   map[string][]string
+		wantErr        error
+	}{
+		{
+			comparisonType: "Pull topic ids for time",
+			group:          "golang-checkins",
+			dom:            exTopicIdDomTime,
+			wantEOF:        false,
+			wantTopicIDS: map[string][]string{
+				fmt.Sprintf("%4d-%2d", timeYearCheck, timeMonthCheck): []string{"https://groups.google.com/forum/?_escaped_fragment_=topic/golang-checkins/8sv65_WCOS4"}},
+			wantErr: nil,
+		},
+		{
+			comparisonType: "Pull topic ids for date",
+			group:          "golang-checkins",
+			dom:            exTopicIdDomDate,
+			wantEOF:        false,
+			wantTopicIDS: map[string][]string{
+				"2018-09": []string{"https://groups.google.com/forum/?_escaped_fragment_=topic/golang-checkins/8sv65_WCOS4"}},
+			wantErr: nil,
+		},
+		{
+			comparisonType: "Check EOF true",
+			group:          "golang-checkins",
+			dom:            exEOFDom,
+			wantEOF:        true,
+			wantTopicIDS:   map[string][]string{},
+			wantErr:        nil,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.comparisonType, func(t *testing.T) {
+			if gotTopicIDS, gotErr = getTopicIDsFromDom(test.group, test.dom); !errors.Is(gotErr, test.wantErr) {
+				t.Errorf("Error response does not match.\n got: %v\nwant: %v", gotErr, test.wantErr)
+			}
+			if !reflect.DeepEqual(gotTopicIDS, test.wantTopicIDS) {
+				t.Errorf("Result response does not match.\n got: %v\nwant: %v", gotTopicIDS, test.wantTopicIDS)
+			}
+		})
+	}
+}
+
+func TestGetMsgIDsFromDom(t *testing.T) {
+
+	exMsgIDResponse := `
+	<html>
+	<table>
+	<tr>
+  <td class="subject"><a href="https://en.wikipedia.org/wiki/Lili%CA%BBuokalani/d/msg/queen/Kamakaʻeha/1891">Lydia Liliʻu Loloku Walania Kamakaʻeha</a></td>
+  </tr>
+	</table>
+  </html>
+`
+
+	exMsgIdDom, _ := goquery.NewDocumentFromReader(strings.NewReader(exMsgIDResponse))
+
+	var (
+		gotRawMsgUrl string
+		gotErr       error
+	)
+	tests := []struct {
+		comparisonType string
+		org            string
+		topicId        string
+		group          string
+		dom            *goquery.Document
+		wantRawMsgUrl  string
+		wantErr        error
+	}{
+		{
+			comparisonType: "Output raw msg url",
+			topicId:        "Kamakaʻeha",
+			group:          "queen",
+			dom:            exMsgIdDom,
+			wantRawMsgUrl:  "https://groups.google.com/forum/message/raw?msg=queen/Kamakaʻeha/1891",
+			wantErr:        nil,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.comparisonType, func(t *testing.T) {
+			if gotRawMsgUrl, gotErr = getMsgIDsFromDom(test.org, test.topicId, test.group, test.dom); !errors.Is(gotErr, test.wantErr) {
+				t.Errorf("Error response does not match.\n got: %v\nwant: %v", gotErr, test.wantErr)
+			}
+			if strings.Compare(gotRawMsgUrl, test.wantRawMsgUrl) != 0 {
+				t.Errorf("DateKey response does not match.\n got: %v\nwant: %v", gotRawMsgUrl, test.wantRawMsgUrl)
+			}
+		})
+	}
+
+}
+
+// TODO - fake http call and return value that is the format expected based on following exCorrectResponseBody
+func TestListTopicIDByMonth(t *testing.T) {}
+
 func TestListRawMsgURLByMonth(t *testing.T) {}
+
 func TestStoreRawMsgByMonth(t *testing.T) {}
+
 func TestGetGoogleGroupsData(t *testing.T) {}

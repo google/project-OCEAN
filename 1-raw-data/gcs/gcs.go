@@ -45,7 +45,7 @@ type StorageConnection struct {
 	bucket     stiface.BucketHandle
 }
 
-func (gcs *StorageConnection) ConnectClient(ctx context.Context) (err error){
+func (gcs *StorageConnection) ConnectClient(ctx context.Context) (err error) {
 	c, err := storage.NewClient(ctx)
 	if err != nil {
 		err = fmt.Errorf("Failed to create client: %v", err)
@@ -84,7 +84,7 @@ func (gcs *StorageConnection) CreateBucket(ctx context.Context) (err error) {
 			return
 		}
 		if err != nil {
-			err = fmt.Errorf("Issues setting up Bucket: %q due to error: %w. Double check project id.", attrs.Name, err)
+			err = fmt.Errorf("Issues setting up Bucket due to error: %w. Double check project id.", err)
 			return
 		}
 		if attrs.Name == gcs.BucketName {
@@ -102,20 +102,20 @@ func (gcs *StorageConnection) StoreTextContentInBucket(ctx context.Context, file
 		return fmt.Errorf("Filename is empty.")
 	}
 
-		obj := gcs.bucket.Object(fileName)
+	obj := gcs.bucket.Object(fileName)
 
-		// w implements io.Writer.
-		w := obj.NewWriter(ctx)
+	// w implements io.Writer.
+	w := obj.NewWriter(ctx)
 
-		// Copy file into storage
-		_, err = io.Copy(w, strings.NewReader(text))
-		if err != nil {
-			log.Printf("Failed to copy %v to bucket with the error: %v", fileName, err)
-		}
+	// Copy file into storage
+	_, err = io.Copy(w, strings.NewReader(text))
+	if err != nil {
+		log.Printf("Failed to copy %v to bucket with the error: %v", fileName, err)
+	}
 
-		if err = w.Close(); err != nil {
-			return fmt.Errorf("Failed to close storage connection: %v", err)
-		}
+	if err = w.Close(); err != nil {
+		return fmt.Errorf("Failed to close storage connection: %v", err)
+	}
 	return
 }
 
