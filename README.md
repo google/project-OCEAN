@@ -32,8 +32,9 @@ If you know of a dataset that should be on the list or have updates to recommend
 - Accessible (How can we access it either API or scrape with permission or no access option or something else)
 - Start Date (When it started being collected - at a minimum what year)
 - End Date (When it stopped being collected or note today if its kept current - at a minimum what year)
-- Update Frequence (How often its updated - daily, monthly, etc)
+- Update Frequency (How often its updated - daily, monthly, etc)
 - Reference Links (especially dataset schema and other info that is useful)
+- License Information (if there is licensing or terms and conditions attached to the data source)
 - Other Info
 
 
