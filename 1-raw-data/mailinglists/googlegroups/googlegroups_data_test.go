@@ -15,124 +15,93 @@
 package googlegroups
 
 import (
-	"context"
 	"errors"
 	"fmt"
-	"net/http"
-	"net/http/httptest"
-	"os"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/google/project-OCEAN/1-raw-data/gcs"
 )
 
-type fakeStorageConnection struct {
-	gcs.StorageConnection
-	ProjectID  string
-	BucketName string
-}
+func TestGetHttpStringResponse(t *testing.T) {
+	var gotResponseString string
+	var gotErr error
 
-func newFakeStorageConnection() *fakeStorageConnection {
-	return &fakeStorageConnection{ProjectID: "Susan-Picotte", BucketName: "Physician"}
-}
-
-// Simulate gcs StoreInBucket
-func (gcs *fakeStorageConnection) StoreInBucket(ctx context.Context, fileName, url string) (storageErr error) {
-	if strings.Contains(url, "Susan") {
-		err := os.ErrNotExist
-		storageErr = fmt.Errorf("%v", err)
+	tests := []struct {
+		comparisonType     string
+		url                string
+		wantResponseString string
+		wantErr            error
+	}{
+		{
+			comparisonType:     "Get empty response if no url",
+			url:                "",
+			wantResponseString: "",
+			wantErr:            nil,
+		},
 	}
-	return
-}
+	for _, test := range tests {
+		t.Run(test.comparisonType, func(t *testing.T) {
 
-//func () httpDomResponse(url string) (dom *goquery.Document, err error) {
-//
-//	if url == "" {
-//		exCorrectResponseBody := `
-//	<html>
-//  <td class="subject">
-//  <a href="https://groups.google.com/d/topic/golang-checkins/8sv65_WCOS4" title="[tools] internal/lsp/cache: use gopls.mod for the workspace module if it exists">[tools] internal/lsp/cache: use gopls.mod for the workspace module if it exists</a>
-//  </td>
-//  <td class="lastPostDate">11:20 AM</td>
-//  </html>
-//`
-//		return goquery.NewDocumentFromReader(strings.NewReader(exCorrectResponseBody))
-//	}
-//}
-
-func fakeHTTPResponse() (response string) {
-	//handler := func(w http.ResponseWriter, r *http.Request) {
-	//	io.WriteString(w, "ping")
-	//}
-	//
-	//req := httptest.NewRequest("GET", "http://example.com/foo", nil)
-	//w := httptest.NewRecorder()
-	//handler(w, req)
-	//
-	//resp := w.Result()
-	//body, _ := ioutil.ReadAll(resp.Body)
-	//
-	//fmt.Println(resp.StatusCode)
-	//fmt.Println(string(body))
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		//fmt.Fprintln(w, "I am a super server")
-		response = fmt.Sprintf("I am a super server")
-	}))
-	defer ts.Close()
-	return
+			if gotResponseString, gotErr = httpStringResponse(test.url); !errors.Is(gotErr, test.wantErr) {
+				t.Errorf("Error response does not match.\n got: %v\nwant: %v", gotErr, test.wantErr)
+			}
+			if strings.Compare(gotResponseString, test.wantResponseString) != 0 {
+				t.Errorf("Filename response does not match.\n got: %v\nwant: %v", gotResponseString, test.wantResponseString)
+			}
+		})
+	}
 }
 
 // TODO test for error?
-func TestGetMonthYearKey(t *testing.T) {
+func TestGetFileName(t *testing.T) {
 	var gotDateKey string
 	var gotErr error
 
 	tests := []struct {
 		comparisonType string
 		matchDate      string
-		wantDateKey    string
+		wantFileName   string
 		wantErr        error
 	}{
 		{
 			// Confirm correct output with 1 dig month and 1 dig day
 			comparisonType: "Single digit month and single digit day",
 			matchDate:      "1/29/91",
-			wantDateKey:    "1991-01",
+			wantFileName:   "1991-01.txt",
 			wantErr:        nil,
 		},
 		{
 			// Confirm correct output with 2 dig month and 1 dig day and not future
 			comparisonType: "Double digit month and Single digit day",
 			matchDate:      "9/2/38",
-			wantDateKey:    "1938-09",
+			wantFileName:   "1938-09.txt",
 			wantErr:        nil,
 		},
 		{
 			// Confirm correct output with 1 dig month and 2 dig day
 			comparisonType: "Single digit month and double digit day",
 			matchDate:      "1/24/95",
-			wantDateKey:    "1995-01",
+			wantFileName:   "1995-01.txt",
 			wantErr:        nil,
 		},
 		{
 			// Confirm correct output with 2 dig month and 2 dig day
 			comparisonType: "Double digit month and double digit day",
 			matchDate:      "11/11/17",
-			wantDateKey:    "2017-11",
+			wantFileName:   "2017-11.txt",
 			wantErr:        nil,
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.comparisonType, func(t *testing.T) {
-			if gotDateKey, gotErr = getMonthYearKey(test.matchDate); !errors.Is(gotErr, test.wantErr) {
+			if gotDateKey, gotErr = getFileName(test.matchDate); !errors.Is(gotErr, test.wantErr) {
 				t.Errorf("Error response does not match.\n got: %v\nwant: %v", gotErr, test.wantErr)
 			}
-			if strings.Compare(gotDateKey, test.wantDateKey) != 0 {
-				t.Errorf("DateKey response does not match.\n got: %v\nwant: %v", gotDateKey, test.wantDateKey)
+			if strings.Compare(gotDateKey, test.wantFileName) != 0 {
+				t.Errorf("Filename response does not match.\n got: %v\nwant: %v", gotDateKey, test.wantFileName)
 			}
 		})
 	}
@@ -225,6 +194,7 @@ func TestGetToipcIDsFromDom(t *testing.T) {
 	)
 	tests := []struct {
 		comparisonType string
+		org            string
 		group          string
 		dom            *goquery.Document
 		wantEOF        bool
@@ -233,24 +203,27 @@ func TestGetToipcIDsFromDom(t *testing.T) {
 	}{
 		{
 			comparisonType: "Pull topic ids for time",
+			org:            "",
 			group:          "golang-checkins",
 			dom:            exTopicIdDomTime,
 			wantEOF:        false,
 			wantTopicIDS: map[string][]string{
-				fmt.Sprintf("%4d-%2d", timeYearCheck, timeMonthCheck): []string{"https://groups.google.com/forum/?_escaped_fragment_=topic/golang-checkins/8sv65_WCOS4"}},
+				fmt.Sprintf("%4d-%2d.txt", timeYearCheck, timeMonthCheck): []string{"https://groups.google.com/forum/message/raw?msg=golang-checkins/8sv65_WCOS4/3Fc-diD_AwAJ"}},
 			wantErr: nil,
 		},
 		{
 			comparisonType: "Pull topic ids for date",
+			org:            "",
 			group:          "golang-checkins",
 			dom:            exTopicIdDomDate,
 			wantEOF:        false,
 			wantTopicIDS: map[string][]string{
-				"2018-09": []string{"https://groups.google.com/forum/?_escaped_fragment_=topic/golang-checkins/8sv65_WCOS4"}},
+				"2018-09.txt": []string{"https://groups.google.com/forum/message/raw?msg=golang-checkins/8sv65_WCOS4/3Fc-diD_AwAJ"}},
 			wantErr: nil,
 		},
 		{
 			comparisonType: "Check EOF true",
+			org:            "",
 			group:          "golang-checkins",
 			dom:            exEOFDom,
 			wantEOF:        true,
@@ -260,7 +233,7 @@ func TestGetToipcIDsFromDom(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.comparisonType, func(t *testing.T) {
-			if gotTopicIDS, gotErr = getTopicIDsFromDom(test.group, test.dom); !errors.Is(gotErr, test.wantErr) {
+			if gotTopicIDS, gotErr = getTopicIDsFromDom(test.org, test.group, test.dom); !errors.Is(gotErr, test.wantErr) {
 				t.Errorf("Error response does not match.\n got: %v\nwant: %v", gotErr, test.wantErr)
 			}
 			if !reflect.DeepEqual(gotTopicIDS, test.wantTopicIDS) {
@@ -271,7 +244,6 @@ func TestGetToipcIDsFromDom(t *testing.T) {
 }
 
 func TestGetMsgIDsFromDom(t *testing.T) {
-
 	exMsgIDResponse := `
 	<html>
 	<table>
@@ -316,14 +288,10 @@ func TestGetMsgIDsFromDom(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 // TODO - fake http call and return value that is the format expected based on following exCorrectResponseBody
+// TODO - test less than 100 and amount that is not divisable by 100
 func TestListTopicIDByMonth(t *testing.T) {}
 
-func TestListRawMsgURLByMonth(t *testing.T) {}
-
 func TestStoreRawMsgByMonth(t *testing.T) {}
-
-func TestGetGoogleGroupsData(t *testing.T) {}

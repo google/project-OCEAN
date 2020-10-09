@@ -36,7 +36,7 @@ func newFakeStorageConnection() *fakeStorageConnection {
 }
 
 // Simulate StoreGCS
-func (gcs *fakeStorageConnection) StoreInBucket(ctx context.Context, fileName, url string) (storageErr error) {
+func (gcs *fakeStorageConnection) StoreURLContentInBucket(ctx context.Context, fileName, url string) (storageErr error) {
 	errStorageInBucket := errors.New("gcs storage failed")
 	if strings.Contains(url, "pipermail") {
 		storageErr = fmt.Errorf("%w: %v", errStorageInBucket, os.ErrNotExist)
@@ -51,26 +51,26 @@ func TestGetPipermailData(t *testing.T) {
 	tests := []struct {
 		comparisonType string
 		gcs            *fakeStorageConnection
-		mailingListURL string
+		groupName      string
 		wantErr        error
 	}{
 		{
 			comparisonType: "Test url is not pipermail and doesn't store",
 			gcs:            storage,
-			mailingListURL: "https://en.wikipedia.org/Pine_Leaf",
+			groupName:      "Pine_Leaf",
 			wantErr:        nil,
 		},
 		{
-			comparisonType: "Test pipermail url gets to StoreGCS method and erro",
+			comparisonType: "Test pipermail url gets to StoreGCS method and error",
 			gcs:            storage,
-			mailingListURL: "https://mail.python.org/pipermail/python-announce-list/",
+			groupName:      "python-announce-list",
 			wantErr:        os.ErrNotExist,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.comparisonType, func(t *testing.T) {
-			if gotErr := GetPipermailData(ctx, test.gcs, test.mailingListURL); !errors.Is(gotErr, test.wantErr) {
+			if gotErr := GetPipermailData(ctx, test.gcs, test.groupName); !errors.Is(gotErr, test.wantErr) {
 				if !strings.Contains(gotErr.Error(), test.wantErr.Error()) {
 					t.Errorf("GetPipermailData response does not match.\n got: %v\nwant: %v", errors.Unwrap(gotErr), test.wantErr)
 				}

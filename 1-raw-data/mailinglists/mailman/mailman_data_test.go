@@ -37,7 +37,7 @@ func newFakeStorageConnection() *fakeStorageConnection {
 }
 
 // Simulate gcs StoreInBucket
-func (gcs *fakeStorageConnection) StoreInBucket(ctx context.Context, fileName, url string) (storageErr error) {
+func (gcs *fakeStorageConnection) StoreURLContentInBucket(ctx context.Context, fileName, url string) (storageErr error) {
 	if strings.Contains(url, "Susan") {
 		err := os.ErrNotExist
 		storageErr = fmt.Errorf("%v", err)
@@ -248,7 +248,7 @@ func TestGetMailmanData(t *testing.T) {
 		{
 			comparisonType: "One month",
 			storage:        storage,
-			baseURL:        "https://en.wikipedia.org/wiki/Susan_La_Flesche_Picotte",
+			baseURL:        "Susan_La_Flesche_Picotte",
 			startDate:      "1915-09-01",
 			endDate:        "1915-09-30",
 			wantErr:        os.ErrNotExist,
@@ -257,7 +257,7 @@ func TestGetMailmanData(t *testing.T) {
 		{
 			comparisonType: "StartDate wrong format",
 			storage:        storage,
-			baseURL:        "https://en.wikipedia.org/wiki/Susan_La_Flesche_Picotte",
+			baseURL:        "Susan_La_Flesche_Picotte",
 			startDate:      "06-17",
 			endDate:        "1915-09-30",
 			wantErr:        fmt.Errorf("06-17"),
@@ -266,7 +266,7 @@ func TestGetMailmanData(t *testing.T) {
 		{
 			comparisonType: "EndDate wrong format",
 			storage:        storage,
-			baseURL:        "https://en.wikipedia.org/wiki/Susan_La_Flesche_Picotte",
+			baseURL:        "Susan_La_Flesche_Picotte",
 			startDate:      "1915-09-01",
 			endDate:        "06-17",
 			wantErr:        fmt.Errorf("06-17"),

@@ -90,9 +90,10 @@ func breakDateByMonth(startDateTime, endDateTime time.Time) (time.Time, time.Tim
 }
 
 // Get, parse and store mailman data in GCS.
-func GetMailmanData(ctx context.Context, storage gcs.Connection, baseURL, startDate, endDate string) (err error) {
+func GetMailmanData(ctx context.Context, storage gcs.Connection, groupName, startDate, endDate string) (err error) {
 	var startDateTime, endDateTime time.Time
 	var filename, url string
+	mailingListURL := fmt.Sprintf("https://mail.python.org/archives/list/%s@python.org/", groupName)
 
 	if startDateTime, endDateTime, err = setDates(startDate, endDate); err != nil {
 		return
@@ -104,7 +105,7 @@ func GetMailmanData(ctx context.Context, storage gcs.Connection, baseURL, startD
 	for startDateTime.Format("2006-01-02") <= orgEndDateTime.Format("2006-01-02") {
 		startDateTime, endDateTime = breakDateByMonth(startDateTime, endDateTime)
 		filename = createMailmanFilename(startDateTime.String())
-		url = createMailmanURL(baseURL, filename, startDateTime.Format("2006-01-02"), endDateTime.Format("2006-01-02"))
+		url = createMailmanURL(mailingListURL, filename, startDateTime.Format("2006-01-02"), endDateTime.Format("2006-01-02"))
 		if err = storage.StoreURLContentInBucket(ctx, filename, url); err != nil {
 			err = fmt.Errorf("Storage failed: %w", err)
 			return

@@ -34,7 +34,9 @@ import (
 )
 
 // Get, parse and store Pipermail data in GCS.
-func GetPipermailData(ctx context.Context, storage gcs.Connection, mailingListURL string) (storageErr error) {
+func GetPipermailData(ctx context.Context, storage gcs.Connection, groupName string) (storageErr error) {
+	mailingListURL := fmt.Sprintf("https://mail.python.org/pipermail/%s/", groupName)
+
 	response, err := http.Get(mailingListURL)
 	if err != nil {
 		return fmt.Errorf("HTTP response returned an error: %w", err)
