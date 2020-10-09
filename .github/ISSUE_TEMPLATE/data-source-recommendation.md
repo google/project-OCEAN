@@ -41,5 +41,8 @@ something else)
 ## Reference Links (especially dataset schema and other info that is useful)
 - 
 
+## License Information (if there is licensing or terms and conditions attached to the data source)
+- 
+
 ## Other Info
 -
