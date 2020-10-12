@@ -239,34 +239,31 @@ func TestGetMailmanData(t *testing.T) {
 	tests := []struct {
 		comparisonType string
 		storage        *fakeStorageConnection
-		baseURL        string
+		groupName      string
 		startDate      string
 		endDate        string
 		wantErr        error
 	}{
-		// Test StoreInBucket is called
 		{
-			comparisonType: "One month",
+			comparisonType: "Test StoreInBucket is called and for one month timeframe",
 			storage:        storage,
-			baseURL:        "Susan_La_Flesche_Picotte",
+			groupName:      "Susan_La_Flesche_Picotte",
 			startDate:      "1915-09-01",
 			endDate:        "1915-09-30",
 			wantErr:        os.ErrNotExist,
 		},
-		// SetDate error wrong format startDate
 		{
-			comparisonType: "StartDate wrong format",
+			comparisonType: "SetDate error StartDate wrong format",
 			storage:        storage,
-			baseURL:        "Susan_La_Flesche_Picotte",
+			groupName:      "Susan_La_Flesche_Picotte",
 			startDate:      "06-17",
 			endDate:        "1915-09-30",
 			wantErr:        fmt.Errorf("06-17"),
 		},
-		// SetDate error wrong format endDate
 		{
-			comparisonType: "EndDate wrong format",
+			comparisonType: "SetDate error EndDate wrong format",
 			storage:        storage,
-			baseURL:        "Susan_La_Flesche_Picotte",
+			groupName:      "Susan_La_Flesche_Picotte",
 			startDate:      "1915-09-01",
 			endDate:        "06-17",
 			wantErr:        fmt.Errorf("06-17"),
@@ -274,7 +271,7 @@ func TestGetMailmanData(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.comparisonType, func(t *testing.T) {
-			if gotErr := GetMailmanData(ctx, test.storage, test.baseURL, test.startDate, test.endDate); !errors.Is(gotErr, test.wantErr) {
+			if gotErr := GetMailmanData(ctx, test.storage, test.groupName, test.startDate, test.endDate); !errors.Is(gotErr, test.wantErr) {
 				if !strings.Contains(gotErr.Error(), test.wantErr.Error()) {
 					t.Errorf("Error doesn't match.\n got: %v\nwant it to contain: %v", gotErr, test.wantErr)
 				}

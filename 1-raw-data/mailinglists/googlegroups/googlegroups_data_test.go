@@ -67,15 +67,15 @@ func TestGetFileName(t *testing.T) {
 		wantErr        error
 	}{
 		{
-			// Confirm correct output with 1 dig month and 1 dig day
-			comparisonType: "Single digit month and single digit day",
+			// Confirm correct output with 1 dig month and 2 dig day
+			comparisonType: "Single digit month and double digit day",
 			matchDate:      "1/29/91",
 			wantFileName:   "1991-01.txt",
 			wantErr:        nil,
 		},
 		{
-			// Confirm correct output with 2 dig month and 1 dig day and not future
-			comparisonType: "Double digit month and Single digit day",
+			// Confirm correct output with 1 dig month and 1 dig day and not future
+			comparisonType: "Single digit month and single digit day",
 			matchDate:      "9/2/38",
 			wantFileName:   "1938-09.txt",
 			wantErr:        nil,
@@ -138,14 +138,12 @@ func TestGetTotalTopics(t *testing.T) {
 		wantErr         error
 	}{
 		{
-			// Confirm correct output with 1 dig month and 1 dig day
 			comparisonType:  "Test regex to read total topics.",
 			dom:             exCorrectDom,
 			wantTotalTopics: 1891,
 			wantErr:         nil,
 		},
 		{
-			// Confirm correct output with 1 dig month and 1 dig day
 			comparisonType:  "Test regex if info does not exist.",
 			dom:             exMissingDom,
 			wantTotalTopics: 0,
@@ -164,7 +162,7 @@ func TestGetTotalTopics(t *testing.T) {
 	}
 }
 
-func TestGetToipcIDsFromDom(t *testing.T) {
+func TestTopicIDToRawMsgUrlMap(t *testing.T) {
 	timeMonthCheck, timeYearCheck := time.Now().Month(), time.Now().Year()
 
 	exTopicIDResponseTime := `
@@ -182,32 +180,27 @@ func TestGetToipcIDsFromDom(t *testing.T) {
   </html>
 `
 
-	exEOFExistsResponse := `<a href="https://en.wikipedia.org/wiki/Lili%CA%BBuokalani">More topics »</a>`
-
 	exTopicIdDomTime, _ := goquery.NewDocumentFromReader(strings.NewReader(exTopicIDResponseTime))
 	exTopicIdDomDate, _ := goquery.NewDocumentFromReader(strings.NewReader(exTopicIDResponseDate))
-	exEOFDom, _ := goquery.NewDocumentFromReader(strings.NewReader(exEOFExistsResponse))
 
 	var (
-		gotTopicIDS map[string][]string
-		gotErr      error
+		gotRawMsgURLMap map[string][]string
+		gotErr          error
 	)
 	tests := []struct {
-		comparisonType string
-		org            string
-		group          string
-		dom            *goquery.Document
-		wantEOF        bool
-		wantTopicIDS   map[string][]string
-		wantErr        error
+		comparisonType   string
+		org              string
+		group            string
+		dom              *goquery.Document
+		wantRawMsgURLMap map[string][]string
+		wantErr          error
 	}{
 		{
 			comparisonType: "Pull topic ids for time",
 			org:            "",
 			group:          "golang-checkins",
 			dom:            exTopicIdDomTime,
-			wantEOF:        false,
-			wantTopicIDS: map[string][]string{
+			wantRawMsgURLMap: map[string][]string{
 				fmt.Sprintf("%4d-%2d.txt", timeYearCheck, timeMonthCheck): []string{"https://groups.google.com/forum/message/raw?msg=golang-checkins/8sv65_WCOS4/3Fc-diD_AwAJ"}},
 			wantErr: nil,
 		},
@@ -216,28 +209,18 @@ func TestGetToipcIDsFromDom(t *testing.T) {
 			org:            "",
 			group:          "golang-checkins",
 			dom:            exTopicIdDomDate,
-			wantEOF:        false,
-			wantTopicIDS: map[string][]string{
+			wantRawMsgURLMap: map[string][]string{
 				"2018-09.txt": []string{"https://groups.google.com/forum/message/raw?msg=golang-checkins/8sv65_WCOS4/3Fc-diD_AwAJ"}},
 			wantErr: nil,
-		},
-		{
-			comparisonType: "Check EOF true",
-			org:            "",
-			group:          "golang-checkins",
-			dom:            exEOFDom,
-			wantEOF:        true,
-			wantTopicIDS:   map[string][]string{},
-			wantErr:        nil,
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.comparisonType, func(t *testing.T) {
-			if gotTopicIDS, gotErr = getTopicIDsFromDom(test.org, test.group, test.dom); !errors.Is(gotErr, test.wantErr) {
+			if gotRawMsgURLMap, gotErr = topicIDToRawMsgUrlMap(test.org, test.group, test.dom); !errors.Is(gotErr, test.wantErr) {
 				t.Errorf("Error response does not match.\n got: %v\nwant: %v", gotErr, test.wantErr)
 			}
-			if !reflect.DeepEqual(gotTopicIDS, test.wantTopicIDS) {
-				t.Errorf("Result response does not match.\n got: %v\nwant: %v", gotTopicIDS, test.wantTopicIDS)
+			if !reflect.DeepEqual(gotRawMsgURLMap, test.wantRawMsgURLMap) {
+				t.Errorf("Result response does not match.\n got: %v\nwant: %v", gotRawMsgURLMap, test.wantRawMsgURLMap)
 			}
 		})
 	}
@@ -292,6 +275,6 @@ func TestGetMsgIDsFromDom(t *testing.T) {
 
 // TODO - fake http call and return value that is the format expected based on following exCorrectResponseBody
 // TODO - test less than 100 and amount that is not divisable by 100
-func TestListTopicIDByMonth(t *testing.T) {}
+func TestListRawMsgURLsByMonth(t *testing.T) {}
 
 func TestStoreRawMsgByMonth(t *testing.T) {}

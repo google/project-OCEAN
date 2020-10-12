@@ -14,6 +14,10 @@
 
 /*
 This package loads Google Groups mailing list data types into Cloud Storage.
+It loops over pages that list topics and pulls the topic ids.
+As it pulls each topic id, it explores the related link to get the message id.
+Then it pulls the raw message content and groups that by month and year.
+Then it stores the text on GCS.
 
 List of all topics / threads url format| LIFO:
 topicListURLBase = "https://groups.google.com%s/forum/?_escaped_fragment_=forum/%s"
@@ -69,7 +73,7 @@ import (
 // TODO setup so can pull specific dates
 // TODO setup to better handle different http errors and capturing where it fails
 
-type Results struct {
+type urlResults struct {
 	urlMap map[string][]string
 	err    error
 }
@@ -79,12 +83,14 @@ type jobsData struct {
 	fileName     string
 }
 
+// Create HTTP response body and return as a string
 func httpStringResponse(url string) (responseString string, err error) {
 	var (
 		bodyBytes []byte
 		response  *http.Response
 	)
 
+	// Keep program running even when url is empty. Returns emptry string and nil error
 	if url == "" {
 		return
 	}
@@ -107,6 +113,7 @@ func httpStringResponse(url string) (responseString string, err error) {
 	return
 }
 
+// Create HTTP response body and return as a dom object
 func httpDomResponse(url string) (dom *goquery.Document, err error) {
 	var response *http.Response
 
@@ -123,11 +130,13 @@ func httpDomResponse(url string) (dom *goquery.Document, err error) {
 	return
 }
 
-// Create month year key for topic list map
+// Create month year filename for topic list map
 func getFileName(matchDate string) (fileName string, err error) {
 	var tempDate time.Time
 	dateSplit := strings.Split(matchDate, "/")
 	numDigMonthDay := fmt.Sprintf("%d%d", len(dateSplit[0]), len(dateSplit[1]))
+
+	// Convert string based on 1 or 2 digit month or day
 	switch numDigMonthDay {
 	case "11":
 		if tempDate, err = time.Parse("1/2/06", matchDate); err != nil {
@@ -155,6 +164,7 @@ func getFileName(matchDate string) (fileName string, err error) {
 	return
 }
 
+// Get the total topics posted at the top of the list to track all are pulled
 func getTotalTopics(dom *goquery.Document) (totalTopics int, err error) {
 	regTotal, _ := regexp.Compile("[^<]*?([0-9]+) *- *([0-9]+) of ([0-9]+)[^<]*?")
 
@@ -186,8 +196,8 @@ func getMsgIDsFromDom(org, topicId, groupName string, dom *goquery.Document) (ra
 	return
 }
 
-// Create list of topic ids grouped by month
-func getTopicIDsFromDom(org, groupName string, dom *goquery.Document) (rawMsgUrlMap map[string][]string, err error) {
+// Parse topic ids from dom, get message ids and create raw message url map by year-month filename
+func topicIDToRawMsgUrlMap(org, groupName string, dom *goquery.Document) (rawMsgUrlMap map[string][]string, err error) {
 
 	rawMsgUrlMap = make(map[string][]string)
 
@@ -202,16 +212,17 @@ func getTopicIDsFromDom(org, groupName string, dom *goquery.Document) (rawMsgUrl
 		row.Find("td").Each(func(i int, cell *goquery.Selection) {
 			topicIdURL, ok := cell.Find("a").Attr("href")
 			if ok {
+				// Get topic id
 				if regTopicURL.MatchString(topicIdURL) {
 					// Capture topic id
 					topicID = path.Base(topicIdURL)
 				}
 			}
-			// Capture date topic posted
+			// Capture date topic posted and convert to year-month text filename for grouping
 			dateClass, _ := cell.Attr("class")
 			if dateClass == "lastPostDate" {
 				matchDate := cell.Text()
-				// Because its a map, unable to skip getting the monthyearkey
+				// If the date is a time then its today otherwise parse the date
 				if regTime.MatchString(matchDate) {
 					dateToParse = time.Now().Format("01/02/06")
 				} else if regDate.MatchString(matchDate) {
@@ -227,9 +238,12 @@ func getTopicIDsFromDom(org, groupName string, dom *goquery.Document) (rawMsgUrl
 				if dom, err = httpDomResponse(msgURL); err != nil {
 					return
 				}
+
+				// Get the message ids from the links associated with each topic id
 				if rawMsgURL, err = getMsgIDsFromDom(org, topicID, groupName, dom); err != nil {
 					return
 				}
+				// Store the urls for the raw message content into a map grouped by year-month
 				rawMsgUrlMap[fileName] = append(rawMsgUrlMap[fileName], rawMsgURL)
 			}
 		})
@@ -237,7 +251,8 @@ func getTopicIDsFromDom(org, groupName string, dom *goquery.Document) (rawMsgUrl
 	return
 }
 
-func getTopicID(org, groupName string, topicURLJobs <-chan string, results chan<- Results) {
+// Worker converting list of topic ids urls to dom objects and converting topic ids into the raw message urls
+func getRawMsgURLWorker(org, groupName string, topicURLJobs <-chan string, results chan<- urlResults) {
 	var (
 		dom                      *goquery.Document
 		topicResults, tmpResults map[string][]string
@@ -247,14 +262,13 @@ func getTopicID(org, groupName string, topicURLJobs <-chan string, results chan<
 	tmpResults = make(map[string][]string)
 
 	for url := range topicURLJobs {
-		//fmt.Printf("Download %s\n", url)
 		if dom, err = httpDomResponse(url); err != nil {
-			results <- Results{err: err}
+			results <- urlResults{err: err}
 			return
 		}
 
-		if tmpResults, err = getTopicIDsFromDom(org, groupName, dom); err != nil {
-			results <- Results{err: fmt.Errorf("Getting dom info returned an error: %v", err)}
+		if tmpResults, err = topicIDToRawMsgUrlMap(org, groupName, dom); err != nil {
+			results <- urlResults{err: fmt.Errorf("Getting dom info returned an error: %v", err)}
 			return
 		}
 
@@ -264,20 +278,20 @@ func getTopicID(org, groupName string, topicURLJobs <-chan string, results chan<
 		}
 
 	}
-	results <- Results{urlMap: topicResults, err: nil}
+	results <- urlResults{urlMap: topicResults, err: nil}
 	return
 }
 
-// Get list of topic IDs by month
-func listTopicIDByMonth(org, groupName string, worker int) (topicIDMap map[string][]string, err error) {
+// Goroutine setup to get/consolidate list of raw message urls by year-month text filename for pages with lists of topic urls.
+func listRawMsgURLsByMonth(org, groupName string, worker int) (rawMsgUrlMap map[string][]string, err error) {
 	var (
 		urlTopicList                        string
-		pageIndex, countTopics, totalTopics int
+		pageIndex, countMsgs, totalMessages int
 		dom                                 *goquery.Document
 	)
 
-	pageIndex, countTopics = 0, 0
-	topicIDMap = make(map[string][]string)
+	pageIndex, countMsgs = 0, 0
+	rawMsgUrlMap = make(map[string][]string)
 
 	urlTopicList = fmt.Sprintf("https://groups.google.com%s/forum/?_escaped_fragment_=forum/%s", org, groupName)
 
@@ -286,32 +300,29 @@ func listTopicIDByMonth(org, groupName string, worker int) (topicIDMap map[strin
 		return
 	}
 
-	if totalTopics, err = getTotalTopics(dom); err != nil {
+	if totalMessages, err = getTotalTopics(dom); err != nil {
 		err = fmt.Errorf("Error getting the total expected topics: %v", err)
 		return
 	}
 
-	// TODO remove
-	//totalTopics = 512
-
-	if worker > totalTopics/100 {
-		worker = totalTopics / 100
+	if worker > totalMessages/100 {
+		worker = totalMessages / 100
 	}
 
-	topicURLJobs := make(chan string, totalTopics/100+1)
-	results := make(chan Results, totalTopics/100+1)
+	topicURLJobs := make(chan string, totalMessages/100+1)
+	results := make(chan urlResults, totalMessages/100+1)
 	defer close(results)
 
 	for i := 0; i < worker; i++ {
-		go getTopicID(org, groupName, topicURLJobs, results)
+		go getRawMsgURLWorker(org, groupName, topicURLJobs, results)
 	}
 
-	for i := 0; i < totalTopics/100; i++ {
+	for i := 0; i < totalMessages/100; i++ {
 		topicURLJobs <- fmt.Sprintf("%s[%d-%d]", urlTopicList, pageIndex+1, pageIndex+100)
 		pageIndex = pageIndex + 100
 	}
-	if totalTopics%100 > 0 {
-		topicURLJobs <- fmt.Sprintf("%s[%d-%d]", urlTopicList, totalTopics-totalTopics%100, totalTopics)
+	if totalMessages%100 > 0 {
+		topicURLJobs <- fmt.Sprintf("%s[%d-%d]", urlTopicList, totalMessages-totalMessages%100, totalMessages)
 	}
 	close(topicURLJobs)
 
@@ -322,21 +333,22 @@ func listTopicIDByMonth(org, groupName string, worker int) (topicIDMap map[strin
 			return
 		}
 		for fileName, rawMsgURL := range output.urlMap {
-			topicIDMap[fileName] = append(topicIDMap[fileName], rawMsgURL...)
-			countTopics = countTopics + len(rawMsgURL)
+			rawMsgUrlMap[fileName] = append(rawMsgUrlMap[fileName], rawMsgURL...)
+			countMsgs = countMsgs + len(rawMsgURL)
 		}
 	}
 
-	if totalTopics == countTopics || totalTopics+1 == countTopics {
-		log.Printf("All topics captured. Total topics captured are %d.", totalTopics)
+	if totalMessages == countMsgs || totalMessages+1 == countMsgs {
+		log.Printf("All topics captured. Total topics captured are %d.", totalMessages)
 
 	} else {
-		log.Printf("Not all topics were captured. Total topics are %d but only %d were captured.", totalTopics, countTopics)
+		log.Printf("Not all topics were captured. Total topics are %d but only %d were captured.", totalMessages, countMsgs)
 	}
 	return
 }
 
-func storeText(ctx context.Context, storage gcs.Connection, rawMsgURLs <-chan jobsData, results chan<- error) {
+// Worker to get text blobs by year-month text filename and store into GCS
+func storeTextWorker(ctx context.Context, storage gcs.Connection, rawMsgURLs <-chan jobsData, results chan<- error) {
 	var (
 		responseString string
 		err            error
@@ -367,7 +379,7 @@ func storeText(ctx context.Context, storage gcs.Connection, rawMsgURLs <-chan jo
 	return
 }
 
-// Put message text by month into GCS
+// Goroutine to process getting full text and storing into GCS
 func storeRawMsgByMonth(ctx context.Context, storage gcs.Connection, worker int, msgResults map[string][]string) (err error) {
 
 	rawMsgURLs := make(chan jobsData, len(msgResults))
@@ -379,7 +391,7 @@ func storeRawMsgByMonth(ctx context.Context, storage gcs.Connection, worker int,
 	}
 
 	for i := 0; i < worker; i++ {
-		go storeText(ctx, storage, rawMsgURLs, results)
+		go storeTextWorker(ctx, storage, rawMsgURLs, results)
 	}
 
 	for fileName, urlList := range msgResults {
@@ -399,16 +411,17 @@ func storeRawMsgByMonth(ctx context.Context, storage gcs.Connection, worker int,
 	return
 }
 
+// Main function to run the script
 func GetGoogleGroupsData(ctx context.Context, org, groupName string, storage gcs.Connection, workerNum int) (err error) {
 
-	var topicResults map[string][]string
+	var messageURLResults map[string][]string
 
-	if topicResults, err = listTopicIDByMonth(org, groupName, workerNum); err != nil {
+	if messageURLResults, err = listRawMsgURLsByMonth(org, groupName, workerNum); err != nil {
 		err = fmt.Errorf("Getting topic ID list returned an error: %v", err)
 		return
 	}
 
-	if err = storeRawMsgByMonth(ctx, storage, workerNum, topicResults); err != nil {
+	if err = storeRawMsgByMonth(ctx, storage, workerNum, messageURLResults); err != nil {
 		err = fmt.Errorf("Storing text in GCS threw an error error: %v", err)
 		return
 	}
