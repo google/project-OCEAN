@@ -57,6 +57,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math"
 	"net/http"
 	"path"
 	"regexp"
@@ -184,7 +185,7 @@ func getTotalTopics(dom *goquery.Document) (totalTopics int, err error) {
 
 // Get message ids from topic pages and create list of raw msg urls by month
 func getMsgIDsFromDom(org, topicId, groupName string, dom *goquery.Document) (rawMsgUrl string, err error) {
-	regTopicURL, _ := regexp.Compile(fmt.Sprintf("/d/msg/%s", groupName))
+	regTopicURL := regexp.MustCompile(fmt.Sprintf("/d/msg/%s", groupName))
 
 	var msgId string
 
@@ -251,27 +252,31 @@ func topicIDToRawMsgUrlMap(org, groupName string, dom *goquery.Document) (rawMsg
 	return
 }
 
-// Worker converting list of topic ids urls to dom objects and converting topic ids into the raw message urls
+// Worker converting list of topic id urls to dom objects and converting topic ids into the raw message urls
 func getRawMsgURLWorker(org, groupName string, topicURLJobs <-chan string, results chan<- urlResults) {
 	var (
-		dom                      *goquery.Document
+		topicDom                 *goquery.Document
 		topicResults, tmpResults map[string][]string
 		err                      error
 	)
 	topicResults = make(map[string][]string)
 	tmpResults = make(map[string][]string)
 
-	for url := range topicURLJobs {
-		if dom, err = httpDomResponse(url); err != nil {
+	// Get the dom structure for the topic url page
+	for topicUrl := range topicURLJobs {
+		if topicDom, err = httpDomResponse(topicUrl); err != nil {
 			results <- urlResults{err: err}
 			return
 		}
 
-		if tmpResults, err = topicIDToRawMsgUrlMap(org, groupName, dom); err != nil {
+		// Get partial results with raw message urls grouped by year-month filename
+		// Output map includes all urls from that page which can be up to 100 values
+		if tmpResults, err = topicIDToRawMsgUrlMap(org, groupName, topicDom); err != nil {
 			results <- urlResults{err: fmt.Errorf("Getting dom info returned an error: %v", err)}
 			return
 		}
 
+		//Combine all raw msg urls results if ther are more than one topicURL page reviewed
 		for fileName, rawMsgURL := range tmpResults {
 			topicResults[fileName] = append(topicResults[fileName], rawMsgURL...)
 			log.Printf("Filename results grabbed %s.", fileName)
@@ -295,7 +300,7 @@ func listRawMsgURLsByMonth(org, groupName string, worker int) (rawMsgUrlMap map[
 
 	urlTopicList = fmt.Sprintf("https://groups.google.com%s/forum/?_escaped_fragment_=forum/%s", org, groupName)
 
-	//Get total topics
+	//Get total topics to track all topics (e.g. messages) are pulled
 	if dom, err = httpDomResponse(urlTopicList); err != nil {
 		return
 	}
@@ -304,10 +309,8 @@ func listRawMsgURLsByMonth(org, groupName string, worker int) (rawMsgUrlMap map[
 		err = fmt.Errorf("Error getting the total expected topics: %v", err)
 		return
 	}
-
-	if worker > totalMessages/100 {
-		worker = totalMessages / 100
-	}
+	
+	worker = int(math.Min(float64(worker), float64(totalMessages/100)))
 
 	topicURLJobs := make(chan string, totalMessages/100+1)
 	results := make(chan urlResults, totalMessages/100+1)
@@ -317,6 +320,7 @@ func listRawMsgURLsByMonth(org, groupName string, worker int) (rawMsgUrlMap map[
 		go getRawMsgURLWorker(org, groupName, topicURLJobs, results)
 	}
 
+	// Loop over each page to pull all topic urls and setup jobs
 	for i := 0; i < totalMessages/100; i++ {
 		topicURLJobs <- fmt.Sprintf("%s[%d-%d]", urlTopicList, pageIndex+1, pageIndex+100)
 		pageIndex = pageIndex + 100
@@ -326,13 +330,14 @@ func listRawMsgURLsByMonth(org, groupName string, worker int) (rawMsgUrlMap map[
 	}
 	close(topicURLJobs)
 
+	// Combine all raw msg urls under the same year month filename
 	for i := 0; i < worker; i++ {
-		output := <-results
-		if output.err != nil {
-			err = output.err
+		rawMsgURLListOutput := <-results
+		if rawMsgURLListOutput.err != nil {
+			err = rawMsgURLListOutput.err
 			return
 		}
-		for fileName, rawMsgURL := range output.urlMap {
+		for fileName, rawMsgURL := range rawMsgURLListOutput.urlMap {
 			rawMsgUrlMap[fileName] = append(rawMsgUrlMap[fileName], rawMsgURL...)
 			countMsgs = countMsgs + len(rawMsgURL)
 		}
@@ -342,7 +347,8 @@ func listRawMsgURLsByMonth(org, groupName string, worker int) (rawMsgUrlMap map[
 		log.Printf("All topics captured. Total topics captured are %d.", totalMessages)
 
 	} else {
-		log.Printf("Not all topics were captured. Total topics are %d but only %d were captured.", totalMessages, countMsgs)
+		err = fmt.Errorf("Not all topics were captured. Total topics are %d but only %d were captured.", totalMessages, countMsgs)
+		return
 	}
 	return
 }
