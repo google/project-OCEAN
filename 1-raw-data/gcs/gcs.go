@@ -30,10 +30,12 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strings"
 )
 
 type Connection interface {
-	StoreInBucket(ctx context.Context, fileName, url string) error
+	StoreTextContentInBucket(ctx context.Context, fileName, text string) (err error)
+	StoreURLContentInBucket(ctx context.Context, fileName, url string) (err error)
 }
 
 type StorageConnection struct {
@@ -43,7 +45,7 @@ type StorageConnection struct {
 	bucket     stiface.BucketHandle
 }
 
-func (gcs *StorageConnection) ConnectClient(ctx context.Context) (err error){
+func (gcs *StorageConnection) ConnectClient(ctx context.Context) (err error) {
 	c, err := storage.NewClient(ctx)
 	if err != nil {
 		err = fmt.Errorf("Failed to create client: %v", err)
@@ -82,7 +84,7 @@ func (gcs *StorageConnection) CreateBucket(ctx context.Context) (err error) {
 			return
 		}
 		if err != nil {
-			err = fmt.Errorf("Issues setting up Bucket: %q due to error: %w. Double check project id.", attrs.Name, err)
+			err = fmt.Errorf("Issues setting up Bucket due to error: %w. Double check project id.", err)
 			return
 		}
 		if attrs.Name == gcs.BucketName {
@@ -93,8 +95,32 @@ func (gcs *StorageConnection) CreateBucket(ctx context.Context) (err error) {
 	}
 }
 
-// Store files in storage.
-func (gcs *StorageConnection) StoreInBucket(ctx context.Context, fileName, url string) (err error) {
+// Store url content in storage.
+func (gcs *StorageConnection) StoreTextContentInBucket(ctx context.Context, fileName, text string) (err error) {
+	//TODO add more filename validation
+	if fileName == "" {
+		return fmt.Errorf("Filename is empty.")
+	}
+
+	obj := gcs.bucket.Object(fileName)
+
+	// w implements io.Writer.
+	w := obj.NewWriter(ctx)
+
+	// Copy file into storage
+	_, err = io.Copy(w, strings.NewReader(text))
+	if err != nil {
+		log.Printf("Failed to copy %v to bucket with the error: %v", fileName, err)
+	}
+
+	if err = w.Close(); err != nil {
+		return fmt.Errorf("Failed to close storage connection: %v", err)
+	}
+	return
+}
+
+// Store url content in storage.
+func (gcs *StorageConnection) StoreURLContentInBucket(ctx context.Context, fileName, url string) (err error) {
 	var response *http.Response
 	//TODO add more filename validation
 	if fileName == "" {

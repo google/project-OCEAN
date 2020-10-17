@@ -152,6 +152,7 @@ func setupGCS(t *testing.T) *StorageConnection {
 	return gcs
 }
 
+// TODO test Error 400: Use of this bucket name is restricted:
 func TestCreateBucket(t *testing.T) {
 	ctx := context.Background()
 	storage := setupGCS(t)
