@@ -32,7 +32,7 @@ from google.cloud import bigquery
 # TODO determine if clean up needed for message_id and in_reply_to
 ALLOWED_FIELDS = ['from', 'subject', 'date', 'message_id', 'in_reply_to', 'references',
                   'body', 'list', 'to', 'cc', 'raw_date_string', 'body_bytes']
-IGNORED_FIELDS = ['delivered_to', 'received', 'content_type', 'mime_version']
+IGNORED_FIELDS = ['delivered_to', 'received', 'content_type', 'mime_version', 'content_transfer_encoding']
 
 def list_bucket_filenames(storage_client, bucketname, prefix):
     """Get gcs bucket filename list"""
@@ -243,39 +243,43 @@ def parse_datestring(datestring):
 
     return date_objects
 
+# TODO add cc
 def parse_contacts(raw_contact):
     """Parse and convert from and to contact information in message"""
     to_from = raw_contact[0].lower().strip()
     raw_contact = raw_contact[1]
     contact_objects = {}
     contact_keys = {'from': ['raw_from_string', 'from_name', 'from_email'], 'to': ['raw_to_string','to_name','to_email']}
-    decode_contact = email.header.decode_header(raw_contact)  # decode header
 
-    if isinstance(decode_contact[0][0], bytes):
-        print('Decoded contact value: {}'.format(decode_contact))
-        reconstruct_contact = b''
-        enc = None
-        # Decode content and recombine if needed
-        for val in decode_contact:
-            reconstruct_contact += val[0]
-            if val[1] and not val[1] == 'unknown-8bit':
-                enc = val[1]
-                if enc == 'latin-2':
-                    enc = 'iso-8859-2'  # sigh
-                print('**************Got header encoded: {}'.format(enc))
-        if not enc:
-            enc = chardet.detect(reconstruct_contact)['encoding']
-        if enc:
-            contact_decoded = decode_messsage(reconstruct_contact, additional_codecs=[enc])
-        else:
-            contact_decoded = decode_messsage(reconstruct_contact)
-        print('***For raw contact {}: and reconstructed {}, got encoding: {}\n with result {}'.format(raw_contact, reconstruct_contact, enc, contact_decoded))
-        if contact_decoded:
-            contact_string = contact_decoded
-        else:  # hmmmm
-            contact_string = '{}'.format(raw_contact)
-    else:
-        contact_string = decode_contact[0][0]
+
+    # TODO put all decoding when handling full message?
+    # get_full_raw = email.header.decode_header(raw_contact)  # decode header
+    #
+    # if isinstance(get_full_raw[0], bytes):
+    #     print('Decoded contact value: {}'.format(raw_contact))
+    #     reconstruct_contact = b''
+    #     enc = None
+    #     # Decode content and recombine if needed
+    #     for val in get_full_raw:
+    #         reconstruct_contact += val[0].encode()
+    #         if val[1] and not val[1] == 'unknown-8bit':
+    #             enc = val[1]
+    #             if enc == 'latin-2':
+    #                 enc = 'iso-8859-2'  # sigh
+    #             print('**************Got header encoded: {}'.format(enc))
+    #     if not enc:
+    #         enc = chardet.detect(reconstruct_contact)['encoding']
+    #     if enc:
+    #         contact_decoded = decode_messsage(reconstruct_contact, additional_codecs=[enc])
+    #     else:
+    #         contact_decoded = decode_messsage(reconstruct_contact)
+    #     print('***For raw contact {}: and reconstructed {}, got encoding: {}\n with result {}'.format(raw_contact, reconstruct_contact, enc, contact_decoded))
+    #     if contact_decoded:
+    #         contact_string = contact_decoded
+    #     else:  # hmmmm
+    #         contact_string = '{}'.format(raw_contact)
+    # else:
+    contact_string = raw_contact
 
     # Store raw from string after its decoded
     contact_objects[contact_keys[to_from][0]] = contact_string
@@ -332,7 +336,7 @@ def parse_everything_else(ee_raw):
 
     if ee_key in ALLOWED_FIELDS:
         try:
-            ee_objects[ee_key] = ee_raw.strip()  # get rid of any leading/trailing whitespace
+            ee_objects[ee_key] = ee_raw.lower().strip()  # get rid of any leading/trailing whitespace
         except AttributeError as err:
             print('for *{}*, got error {} for {}'.format(ee_key, err, ee_raw))
             print('trying decode method...')
@@ -349,7 +353,7 @@ def parse_everything_else(ee_raw):
             if ee_decoded:
                 ee_objects[ee_key] = ee_decoded.strip()
             else:
-                ee_objects[ee_key] = '{}'.format(ee_raw).lower().strip()
+                ee_objects[ee_key] = '{}'.format(ee_raw.lower().strip())
             time.sleep(5)
     elif ee_key not in IGNORED_FIELDS:
         print('****Ignoring unsupported message field: {} in msg {}'.format(ee_key, ee_raw))

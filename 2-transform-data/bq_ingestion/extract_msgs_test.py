@@ -258,22 +258,22 @@ class Test(unittest.TestCase):
 
             "test3": {
                 "comparison_type":"Test standard date format w/ 2 dig date and pos 2 hr GMT offset",
-                "input":("", "Wed, 19 May 1999 03:10:15 +0200")},
+                "input":("Date", "Wed, 19 May 1999 03:10:15 +0200")},
             "test4": {
                 "comparison_type":"Test standard date format w/ 2 dig date and pos 1 hr GMT offset and timezone note",
-                "input":("", "Tue, 13 Feb 2001 08:17:03 +0100 (MET)")},
+                "input":("Date", "Tue, 13 Feb 2001 08:17:03 +0100 (MET)")},
             "test5": {
                 "comparison_type": "Test day month format w/o week day w/ 1 dig date and 8 hr GMT offset",
-                "input":("", "6 Nov 2006 11:11:19 -0800")},
+                "input":("Date", "6 Nov 2006 11:11:19 -0800")},
             "test6": {
                 "comparison_type": "Test standard date format w/ 2 dig date and no GMT offset and timezone note",
-                "input": ("", "Wed, 25 Oct 2006 19:21:24 GMT")},
+                "input": ("Date", "Wed, 25 Oct 2006 19:21:24 GMT")},
             "test7": {
                 "comparison_type": "Test day month format w/o week day w/ 2 dig date and 8 hr GMT offset and timezone note",
-                "input": ("", "25 May 2006 03:11:24 GMT") },
+                "input": ("Date", "25 May 2006 03:11:24 GMT") },
             "test8": {
                 "comparison_type": "Test day of week day and mont w/ 1 dig date and nothing else",
-                "input": ("", "Sat, 6 Aug")},
+                "input": ("Date", "Sat, 6 Aug")},
             # TODO following don't parse currently - need fixes and include in tests
             # "test8": (,"Sun, 05 Nov 2000 19:04:06 -050"),
             # "test10": (,"Sun, 05 Nov 2000 19:04:06  0000"),
@@ -305,13 +305,105 @@ class Test(unittest.TestCase):
             self.assertEqual(want_date[key], got_date, "Parse datestring error")
 
     def test_parse_contacts(self):
-        pass
+        msg_input = {
+            "test1": {
+                "comparison_type": "Test get from contact from string",
+                "msg_obj": ('From', "US Congress <us.congress@gmail.com>\n")
+            },
+            "test2": {
+                "comparison_type": "Test get to contact from string",
+                "msg_obj": ('To',"Ida B Wells <ida.b.wells@gmail.com>\n")
+            },
+            "test3": {
+                "comparison_type": "Test get contact from string without <> around email",
+                "msg_obj": ('To',"ida.b.wells@gmail.com\n")
+            },
+            "test4": {
+                "comparison_type": "Test get contact from string without name and with <>",
+                "msg_obj": ('From', "<us.congress@gmail.com>\n")
+            },
+            # TODO email utils does not parse the name - potentially need alternative
+            # "test5": {
+            #     "comparison_type": "Test get contact without email",
+            #     "msg_obj": ('To',"Ida B Wells\n")
+            # },
+
+        }
+        want_msg_list = {
+            "test1": {'raw_from_string': 'US Congress <us.congress@gmail.com>\n', 'from_name': "us congress", 'from_email': 'us.congress@gmail.com' },
+            "test2": {'raw_to_string': 'Ida B Wells <ida.b.wells@gmail.com>\n', 'to_name': "ida b wells", 'to_email': 'ida.b.wells@gmail.com'},
+            "test3": {'raw_to_string': 'ida.b.wells@gmail.com\n','to_email': 'ida.b.wells@gmail.com'},
+            "test4": {'raw_from_string': '<us.congress@gmail.com>\n', 'from_email': 'us.congress@gmail.com' },
+            # "test5": {'raw_to_string': 'Ida B Wells\n', 'to_name': "ida b wells"},
+        }
+        #
+        for key, test in msg_input.items():
+            # print(test['comparison_type'])
+            got_msg_list = em.parse_contacts(test["msg_obj"])
+            self.assertEqual(want_msg_list[key], got_msg_list, "Parse contacts error")
 
     def test_parse_references(self):
-        pass
+        msg_input = {
+            "test1": {
+                "comparison_type": "Test get reference from string",
+                "msg_obj": ('References', '<voting-rights-id@mail.gmail.com>'),
+            },
+            "test2": {
+                "comparison_type": "Test get multiple references from string",
+                "msg_obj": ('References', '<voting-rights-id@mail.gmail.com> <ida.b.wells@gmail.com>'),
+            },
+        }
+        want_msg_list = {
+            "test1": {'references': '<voting-rights-id@mail.gmail.com>', 'refs': [{'ref':'<voting-rights-id@mail.gmail.com>'}] },
+            "test2": {'references': '<voting-rights-id@mail.gmail.com> <ida.b.wells@gmail.com>', 'refs': [{'ref':'<voting-rights-id@mail.gmail.com>'},{'ref': '<ida.b.wells@gmail.com>'}]},
+        }
+        #
+        for key, test in msg_input.items():
+            # print(test['comparison_type'])
+            got_msg_list = em.parse_references(test["msg_obj"])
+            self.assertEqual(want_msg_list[key], got_msg_list, "Parse references error")
 
     def test_parse_everything_else(self):
-        pass
+        msg_input = {
+            "test1": {
+                "comparison_type": "Test parse message id from string",
+                "msg_obj":('Message-ID', '\n <voting-rights-id@mail.gmail.com>'),
+            },
+            "test2": {
+                "comparison_type": "Test parse MIME version from string and get nothing because ignored",
+                "msg_obj": ('MIME-Version', '1.0'),
+            },
+            "test3": {
+                "comparison_type": "Test parse content type from string and get nothing because ignored",
+                "msg_obj": ('Content-Type', 'text/plain; charset="utf-8"'),
+            },
+            "test4": {
+                "comparison_type": "Test content transfer encoding from string and get nothing because ignored",
+                "msg_obj": ('Content-Transfer-Encoding', '7bit'),
+            },
+            "test5": {
+                "comparison_type": "Test parse subjectfrom string",
+                "msg_obj": ('Subject', '19th Ammendment'),
+            },
+            "test6": {
+                "comparison_type": "Test parse in replyt to type from string",
+                "msg_obj": ('In-Reply-To', '<voting-rights-id@mail.gmail.com>'),
+            },
+        }
+
+        want_msg_list = {
+            "test1": {'message_id': '<voting-rights-id@mail.gmail.com>' },
+            "test2": {},
+            "test3": {},
+            "test4": {},
+            "test5": {'subject': '19th ammendment'},
+            "test6": {'in_reply_to': '<voting-rights-id@mail.gmail.com>'},
+        }
+
+        for key, test in msg_input.items():
+            # print(test['comparison_type'])
+            got_msg_list = em.parse_everything_else(test["msg_obj"])
+            self.assertEqual(want_msg_list[key], got_msg_list, "Parse everything else error")
 
 
     # TODO test one email address, multiple, with or with or without names, with or without symbols
