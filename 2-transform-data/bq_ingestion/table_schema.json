@@ -51,19 +51,49 @@
       "mode": "NULLABLE"
   },
   {
-      "name": "to",
+      "name": "to_name",
       "type": "STRING",
       "mode": "NULLABLE"
   },
   {
-      "name": "cc",
+    "name": "to_email",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "raw_to_string",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+      "name": "cc_name",
       "type": "STRING",
       "mode": "NULLABLE"
+  },
+  {
+    "name": "cc_email",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "raw_cc_string",
+    "type": "STRING",
+    "mode": "NULLABLE"
   },
   {
       "name": "raw_date_string",
       "type": "STRING",
       "mode": "NULLABLE"
+  },
+  {
+    "name": "log",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "content_type",
+    "type": "STRING",
+    "mode": "NULLABLE"
   },
   {
       "name": "body_bytes",
@@ -73,11 +103,12 @@
   {
       "name": "refs",
       "type": "RECORD",
-        "mode": "REPEATED",
+      "mode": "REPEATED",
       "fields": [
           {
               "name": "ref",
-              "type": "STRING"
+              "type": "STRING",
+              "mode": "NULLABLE"
           }
       ]
   }

@@ -1,3 +1,18 @@
+# Copyright 2020 Google Inc. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
 import unittest
 import datetime
 from dateutil import parser
@@ -15,45 +30,66 @@ class Test(unittest.TestCase):
             b'To: Emmeline Pankhurst <emmeline.pankhurst@gmail.com>\n',
             b'Subject: Voting Rights\n',
             b'Date: Mon, July 2 1928 13:46:03 +0100\n',
-            b'Message-ID:\n',
-            b' <voting-rights-id@mail.gmail.com>\n',
             b'MIME-Version: 1.0\n',
             b'Content-Type: text/plain; charset="utf-8"\n',
             b'Content-Transfer-Encoding: 7bit\n',
             b'References: <voting-rights-id@mail.gmail.com>\n',
+            b'Message-ID: <voting-rights-id@mail.gmail.com>\n',
             b'\n',
             b'Full women voting rights passed in U.K.\n',
             b'\n',
             b'"We are here, not because we are law-breakers; we are here in our efforts to become law-makers."\n'],)
-        self.ex_text_post_from_uk = 'From: UK Parliment <uk.parliment@gmail.com>\nTo: Emmeline Pankhurst <emmeline.pankhurst@gmail.com>\nSubject: Voting Rights\nDate: Mon, July 2 1928 13:46:03 +0100\nMessage-ID:\n<voting-rights-id@mail.gmail.com>\nMIME-Version: 1.0\nContent-Type: text/plain; charset="utf-8"\nContent-Transfer-Encoding: 7bit\nReferences: <voting-rights-id@mail.gmail.com>\n\nFull women voting rights passed in U.K.\n\n"We are here, not because we are law-breakers; we are here in our efforts to become law-makers."\n'
-        self.ex_text_post_from_us1 = 'From: US Congress <us.congress@gmail.com>\nTo: staton.anthony@gmail.com\nSubject: 19th Ammendment\nDate: Wed, Aug 18 1920 11:00:07 +0100\nMessage-ID:\n<19th-ammendment-id@mail.gmail.com>\nMIME-Version: 1.0\nContent-Type: text/plain; charset="utf-8"\nContent-Transfer-Encoding: 7bit\nReferences: <19th-ammendment-id@mail.gmail.com>\n\n19th Amemndment ratified in U.S. granting women the right to vote after the final vote in Tennessee.\n\nAs per the Declaration of Sentiments in 1848, "We hold these truths to be self-evident: that all men and women are created equal; that they are endowed by their Creator with certain inalienable rights; that among these are life, liberty, and the pursuit of happiness."\n'
-        self.ex_text_post_from_us2 = 'From: US Congress <us.congress@gmail.com>\nTo: ida.b.wells@gmail.com\nSubject: Voter Rights Act\nDate: Wed, Aug 6 1965 15:32:20 +0100\nMessage-ID:\n<voter-rights-act-id@mail.gmail.com>\nMIME-Version: 1.0\nContent-Type: text/plain; charset="utf-8"\nContent-Transfer-Encoding: 7bit\nReferences: <voter-rights-act-id@mail.gmail.com>\n\nVoter`s Rights Act outlawed discriminatory voting practices.\n\n  From 1913 suffrage march in DC, "Either I go with you or not at all. I am not taking this stand because I personally wish for recognition. I am doing it for the future benefit of my whole race."\n'
-        self.ex_text_post_mime_us1='MIME-Version: 1.0\nSender: us.congress@gmail.com\nReceived: by 10.90.70.10 with HTTP; Wed, Aug 18 1920 11:00:07 -0700 (PDT)\nIn-Reply-To:<voting-rights-id@mail.gmail.com>\nReferences: <19th-ammendment-id@mail.gmail.com>\nFrom: US Congress <us.congress@gmail.com>\nDate: Wed, Aug 18 1920 11:00:07 +0100\nMessage-ID:\n<19th-ammendment-id@mail.gmail.com>\nSubject: 19th Ammendment\nTo: staton.anthony@gmail.com\nContent-Type: text/plain; charset=ISO-8859-1\nContent-Transfer-Encoding: quoted-printable\n\n19th Amemndment ratified in U.S. granting women the right to vote after the final vote in Tennessee.\n\nAs per the Declaration of Sentiments in 1848, "We hold these truths to be self-evident: that all men and women are created equal; that they are endowed by their Creator with certain inalienable rights; that among these are life, liberty, and the pursuit of happiness."\n'
-        self.ex_text_post_date_us2='Date: Wed, Aug 6 1965 15:32:20 +0100\nFrom: US Congress <us.congress@gmail.com>\nTo: ida.b.wells@gmail.com\nMessage-ID:\n<voter-rights-act-id@mail.gmail.com>\nSubject: Voter Rights Act\nMIME-Version: 1.0\nContent-Type: text/plain; charset="utf-8"\nContent-Transfer-Encoding: 7bit\nReferences: <voter-rights-act-id@mail.gmail.com><ida.b.wells@gmail.com>\n\nVoter`s Rights Act outlawed discriminatory voting practices.\n\n  From 1913 suffrage march in DC, "Either I go with you or not at all. I am not taking this stand because I personally wish for recognition. I am doing it for the future benefit of my whole race."\n'
+        self.ex_text_post_from_uk = 'From: UK Parliment <uk.parliment@gmail.com>\nTo: Emmeline Pankhurst <emmeline.pankhurst@gmail.com>\nSubject: Voting Rights\nDate: Mon, July 2 1928 13:46:03 +0100\nMIME-Version: 1.0\nContent-Type: text/plain; charset="utf-8"\nContent-Transfer-Encoding: 7bit\nReferences: <voting-rights-id@mail.gmail.com>\nMessage-ID: <voting-rights-id@mail.gmail.com>\n\nFull women voting rights passed in U.K.\n\n"We are here, not because we are law-breakers; we are here in our efforts to become law-makers."\n'
+        self.ex_text_post_from_us1 = 'From: US Congress <us.congress@gmail.com>\nTo: staton.anthony@gmail.com\nSubject: 19th Ammendment\nDate: Wed, Aug 18 1920 11:00:07 +0100\nMessage-ID:<19th-ammendment-id@mail.gmail.com>\nMIME-Version: 1.0\nContent-Type: text/plain; charset="utf-8"\nContent-Transfer-Encoding: 7bit\nReferences: <19th-ammendment-id@mail.gmail.com>\n\n19th Amemndment ratified in U.S. granting women the right to vote after the final vote in Tennessee.\n\nAs per the Declaration of Sentiments in 1848, "We hold these truths to be self-evident: that all men and women are created equal; that they are endowed by their Creator with certain inalienable rights; that among these are life, liberty, and the pursuit of happiness."\n'
+        self.ex_text_post_from_us2 = 'From: US Congress <us.congress@gmail.com>\nTo: ida.b.wells@gmail.com\nSubject: Voter Rights Act\nDate: Wed, Aug 6 1965 15:32:20 +0100\nMessage-ID:<voter-rights-act-id@mail.gmail.com>\nMIME-Version: 1.0\nContent-Type: text/plain; charset="utf-8"\nContent-Transfer-Encoding: 7bit\nReferences: <voter-rights-act-id@mail.gmail.com>\n\nVoter`s Rights Act outlawed discriminatory voting practices.\n\n  From 1913 suffrage march in DC, "Either I go with you or not at all. I am not taking this stand because I personally wish for recognition. I am doing it for the future benefit of my whole race."\n'
+        self.ex_text_post_xreceived_us1='/nX-Received: by 65.19.006.002 with SMTP id 19651965vote.65.555555555555;\nMIME-Version: 1.0\nSender: us.congress@gmail.com\nReceived: by 10.90.70.10 with HTTP; Wed, Aug 18 1920 11:00:07 -0700 (PDT)\nIn-Reply-To:<voting-rights-id@mail.gmail.com>\nReferences: <19th-ammendment-id@mail.gmail.com>\nFrom: US Congress <us.congress@gmail.com>\nDate: Wed, Aug 18 1920 11:00:07 +0100\nMessage-ID:<19th-ammendment-id@mail.gmail.com>\nSubject: 19th Ammendment\nTo: staton.anthony@gmail.com\nContent-Type: text/plain; charset=ISO-8859-1\nContent-Transfer-Encoding: quoted-printable\n\n19th Amemndment ratified in U.S. granting women the right to vote after the final vote in Tennessee.\n\nAs per the Declaration of Sentiments in 1848, "We hold these truths to be self-evident: that all men and women are created equal; that they are endowed by their Creator with certain inalienable rights; that among these are life, liberty, and the pursuit of happiness."\n'
+        self.ex_text_post_xreceived_us2_author_cc='/nX-Received: by 65.19.006.002 with SMTP id 19651965vote.65.555555555555;\nDate: Wed, Aug 6 1965 15:32:20 +0100\nFrom: voter@us.com\nAuthor: US Congress <us.congress@gmail.com>\nTo: ida.b.wells@gmail.com\nCC: Frances Ellen Watkins Harper \nMessage-ID:<voter-rights-act-id@mail.gmail.com>\nSubject: Voter Rights Act\nMIME-Version: 1.0\nContent-Type: text/plain; charset="utf-8"\nContent-Transfer-Encoding: 7bit\nReferences: <voter-rights-act-id@mail.gmail.com><ida.b.wells@gmail.com>\n\nVoter`s Rights Act outlawed discriminatory voting practices.\n\n  From 1913 suffrage march in DC, "Either I go with you or not at all. I am not taking this stand because I personally wish for recognition. I am doing it for the future benefit of my whole race."\n'
         self.ex_parsed_msg_single = [[('From', 'UK Parliment <uk.parliment@gmail.com>'),
                           ('To', 'Emmeline Pankhurst <emmeline.pankhurst@gmail.com>'),
                           ('Subject', 'Voting Rights'),
                           ('Date', 'Mon, July 2 1928 13:46:03 +0100'),
-                          ('Message-ID', '\n <voting-rights-id@mail.gmail.com>'),
                           ('MIME-Version', '1.0'),
                           ('Content-Type', 'text/plain; charset="utf-8"'),
                           ('Content-Transfer-Encoding', '7bit'),
                           ('References', '<voting-rights-id@mail.gmail.com>'),
+                                      ('Message-ID','<voting-rights-id@mail.gmail.com>'),
                           ("list", "pankhurst-bucket"),
-                          ('Body', 'Full women voting rights passed in U.K.\n\n"We are here, not because we are law-breakers; we are here in our efforts to become law-makers."\n')]]
+                          ('Body','Full women voting rights passed in U.K.\n\n"We are here, not because we are law-breakers; we are here in our efforts to become law-makers."\n')]]
+        self.ex_parsed_msg_singl_auth_cc =[[('From', 'UK Parliment <uk.parliment@gmail.com>'),
+                                            ('To', 'ida.b.wells@gmail.com'),
+                                            ('Subject', 'Voter Rights Act'),
+                                            ('Date', 'Wed, Aug 6 1965 15:32:20 +0100'),
+                                            ('Author', 'US Congress <us.congress@gmail.com>'),
+                                            ('CC', 'Emmeline Pankhurst <emmeline.pankhurst@gmail.com>'),
+                                            ('Message-ID', '<voter-rights-act-id@mail.gmail.com>'),
+                                            ('MIME-Version', '1.0'),
+                                            ('Content-Typ', 'text/plain; charset="utf-8"'),
+                                            ('Content-Transfer-Encoding', '7bit'),
+                                            ('References:' ,'<voter-rights-act-id@mail.gmail.com>'),
+                                            ('list', 'voter-bucket'),
+                                            ('Body', '\nVoter`s Rights Act outlawed discriminatory voting practices.\n\n  From 1913 suffrage march in DC, "Either I go with you or not at all. I am not taking this stand because I personally wish for recognition. I am doing it for the future benefit of my whole race."\n')]]
         self.ex_parsed_msg_mult = [[('From', 'US Congress <us.congress@gmail.com>'),
                                     ('To', 'staton.anthony@gmail.com'),
                                     ('Subject', '19th Ammendment'),
                                     ('Date', 'Wed, Aug 18 1920 11:00:07 +0100'),
-                                    ('Message-ID', ''), ('list', 'voter-bucket'),
-                                    ('Body', '<19th-ammendment-id@mail.gmail.com>\nMIME-Version: 1.0\nContent-Type: text/plain; charset="utf-8"\nContent-Transfer-Encoding: 7bit\nReferences: <19th-ammendment-id@mail.gmail.com>\n\n19th Amemndment ratified in U.S. granting women the right to vote after the final vote in Tennessee.\n\nAs per the Declaration of Sentiments in 1848, "We hold these truths to be self-evident: that all men and women are created equal; that they are endowed by their Creator with certain inalienable rights; that among these are life, liberty, and the pursuit of happiness."\n')],
+                                    ('Message-ID', '<19th-ammendment-id@mail.gmail.com>'),
+                                    ('MIME-Version', '1.0'),
+                                    ('Content-Type', 'text/plain; charset="utf-8"'),
+                                    ('Content-Transfer-Encoding', '7bit'),
+                                    ('References', '<19th-ammendment-id@mail.gmail.com>'),
+                                    ('list', 'voter-bucket'),
+                                    ('Body', '19th Amemndment ratified in U.S. granting women the right to vote after the final vote in Tennessee.\n\nAs per the Declaration of Sentiments in 1848, "We hold these truths to be self-evident: that all men and women are created equal; that they are endowed by their Creator with certain inalienable rights; that among these are life, liberty, and the pursuit of happiness."\n')],
                                    [('From', 'US Congress <us.congress@gmail.com>'),
                                     ('To', 'ida.b.wells@gmail.com'),
                                     ('Subject', 'Voter Rights Act'),
                                     ('Date', 'Wed, Aug 6 1965 15:32:20 +0100'),
-                                    ('Message-ID', ''),
+                                    ('Message-ID', '<voter-rights-act-id@mail.gmail.com>'),
+                                    ('MIME-Version', '1.0'),
+                                    ('Content-Type', 'text/plain; charset="utf-8"'),
+                                    ('Content-Transfer-Encoding', '7bit'),
+                                    ('References', '<voter-rights-act-id@mail.gmail.com>'),
                                     ('list', 'voter-bucket'),
-                                    ('Body', '<voter-rights-act-id@mail.gmail.com>\nMIME-Version: 1.0\nContent-Type: text/plain; charset="utf-8"\nContent-Transfer-Encoding: 7bit\nReferences: <voter-rights-act-id@mail.gmail.com>\n\nVoter`s Rights Act outlawed discriminatory voting practices.\n\n  From 1913 suffrage march in DC, "Either I go with you or not at all. I am not taking this stand because I personally wish for recognition. I am doing it for the future benefit of my whole race."\n')]]
+                                    ('Body', 'Voter`s Rights Act outlawed discriminatory voting practices.\n\n  From 1913 suffrage march in DC, "Either I go with you or not at all. I am not taking this stand because I personally wish for recognition. I am doing it for the future benefit of my whole race."\n')]]
 
     # TODO is iso8859 really being tested?
     def test_decode_messsage(self):
@@ -62,7 +98,7 @@ class Test(unittest.TestCase):
             "test1": {
                 "comparison_type": "Decode utf8 with from and date",
                 "data": b'From ida.b.wells@gmail.com Tue Sep  1 04:14:32 2020\n'
-        },
+            },
             "test2": {
                 "comparison_type": "Decode utf8 with text and special symbols",
                 "data": b"Women's Voting Rights.\n"},
@@ -137,28 +173,28 @@ class Test(unittest.TestCase):
             },
             "test3": {
 
-                "comparison_type": "Test single text message example with MIME as the split value",
-                "client": self.create_bucket_mock(test_bucket_names[1], test_blob_names[1], test_content_types[1], self.ex_text_post_mime_us1.encode()),
+                "comparison_type": "Test single text message example with /nX-Received as the split value",
+                "client": self.create_bucket_mock(test_bucket_names[1], test_blob_names[1], test_content_types[1], self.ex_text_post_xreceived_us1),
                 "bucket_name": test_bucket_names[1],
                 "filename": test_fnames[1]
 
             },
             "test4": {
-                "comparison_type": "Test multiple text message example with MIME as the split value",
-                "client": self.create_bucket_mock(test_bucket_names[1], test_blob_names[1], test_content_types[1], self.ex_text_post_mime_us1.encode() + self.ex_text_post_mime_us1.encode()),
+                "comparison_type": "Test multiple text message example with /nX-Received as the split value",
+                "client": self.create_bucket_mock(test_bucket_names[1], test_blob_names[1], test_content_types[1], self.ex_text_post_xreceived_us1 + self.ex_text_post_xreceived_us1),
                 "bucket_name": test_bucket_names[1],
                 "filename": test_fnames[1]
 
             },
             "test5": {
-                "comparison_type": "Test single text message example with Date as the split value",
-                "client": self.create_bucket_mock(test_bucket_names[2], test_blob_names[2], test_content_types[1], self.ex_text_post_date_us2.encode()),
+                "comparison_type": "Test single text message example with /nX-Received as the split value and includes CC and Author",
+                "client": self.create_bucket_mock(test_bucket_names[2], test_blob_names[2], test_content_types[1], self.ex_text_post_xreceived_us2_author_cc),
                 "bucket_name": test_bucket_names[2],
                 "filename": test_fnames[2]
             },
             "test6": {
-                "comparison_type": "Test multiple text message example with Date as the split value",
-                "client": self.create_bucket_mock(test_bucket_names[2], test_blob_names[2], test_content_types[1], self.ex_text_post_date_us2.encode()+self.ex_text_post_date_us2.encode()),
+                "comparison_type": "Test multiple text message example with /nX-Received as the split value and includes CC and Author",
+                "client": self.create_bucket_mock(test_bucket_names[2], test_blob_names[2], test_content_types[1], self.ex_text_post_xreceived_us2_author_cc+self.ex_text_post_xreceived_us2_author_cc),
                 "bucket_name": test_bucket_names[2],
                 "filename": test_fnames[2]
             },
@@ -171,12 +207,12 @@ class Test(unittest.TestCase):
 
         }
         want_msg_list = {
-            "test1": [self.ex_text_post_from_uk.encode()],
-            "test2": [self.ex_text_post_from_us1.encode(), self.ex_text_post_from_us2.encode()],
-            "test3": [self.ex_text_post_mime_us1.encode()],
-            "test4": [self.ex_text_post_mime_us1.encode(), self.ex_text_post_mime_us1.encode()],
-            "test5": [self.ex_text_post_date_us2.encode()],
-            "test6": [self.ex_text_post_date_us2.encode(), self.ex_text_post_date_us2.encode()],
+            "test1": [self.ex_text_post_from_uk],
+            "test2": [self.ex_text_post_from_us1, self.ex_text_post_from_us2],
+            "test3": [self.ex_text_post_xreceived_us1],
+            "test4": [self.ex_text_post_xreceived_us1, self.ex_text_post_xreceived_us1],
+            "test5": [self.ex_text_post_xreceived_us2_author_cc],
+            "test6": [self.ex_text_post_xreceived_us2_author_cc, self.ex_text_post_xreceived_us2_author_cc],
             # "test7": Want to test error
         }
 
@@ -185,18 +221,17 @@ class Test(unittest.TestCase):
             got_msg_list= em.get_msgs_from_gcs(test['client'], test['bucket_name'], test['filename'])
             self.assertEqual(want_msg_list[key], got_msg_list, "Get msg from gcs error")
 
-
     def test_get_msg_objs_list(self):
 
         msg_input = {
             "test1": {
                 "comparison_type": "Test getting message parts from single message",
-                "msgs": [self.ex_binary_post_from_uk],
+                "msgs": [self.ex_text_post_from_uk],
                 "bucketname":"pankhurst-bucket"
             },
             "test2": {
                 "comparison_type": "Test getting message parts from multiple messages",
-                "msgs":[self.ex_text_post_from_us1.encode(),self.ex_text_post_from_us2.encode()],
+                "msgs":[self.ex_text_post_from_us1,self.ex_text_post_from_us2],
                 "bucketname": "voter-bucket"
             },
         }
@@ -224,11 +259,11 @@ class Test(unittest.TestCase):
         msg_input = {
             "test1": {
                 "comparison_type": "Test getting body from multipart message",
-                "msg_obj": email.parser.BytesParser().parsebytes(self.ex_binary_post_from_uk)
+                "msg_obj": email.message_from_string(self.ex_text_post_from_uk)
             },
             "test2": {
                 "comparison_type": "Test getting body from single part message",
-                    "msg_obj":    email.parser.BytesParser().parsebytes(b'What is the Voter Rights Act?\n'),
+                    "msg_obj": email.message_from_string('What is the Voter Rights Act?\n'),
             }
         }
         want_msg_list = {
@@ -322,6 +357,15 @@ class Test(unittest.TestCase):
                 "comparison_type": "Test get contact from string without name and with <>",
                 "msg_obj": ('From', "<us.congress@gmail.com>\n")
             },
+            "test5": {
+                "comparison_type": "Test get contact author string",
+                "msg_obj": ('Author', "US Congress <us.congress@gmail.com>\n")
+            },
+            "test6": {
+                "comparison_type": "Test get contact cc string",
+                "msg_obj": ('CC',"Ida B Wells <ida.b.wells@gmail.com>\n")
+            },
+
             # TODO email utils does not parse the name - potentially need alternative
             # "test5": {
             #     "comparison_type": "Test get contact without email",
@@ -334,6 +378,8 @@ class Test(unittest.TestCase):
             "test2": {'raw_to_string': 'Ida B Wells <ida.b.wells@gmail.com>\n', 'to_name': "ida b wells", 'to_email': 'ida.b.wells@gmail.com'},
             "test3": {'raw_to_string': 'ida.b.wells@gmail.com\n','to_email': 'ida.b.wells@gmail.com'},
             "test4": {'raw_from_string': '<us.congress@gmail.com>\n', 'from_email': 'us.congress@gmail.com' },
+            "test5": {'raw_from_string': 'US Congress <us.congress@gmail.com>\n', 'from_name': "us congress", 'from_email': 'us.congress@gmail.com' },
+            "test6": {'raw_cc_string': 'Ida B Wells <ida.b.wells@gmail.com>\n', 'cc_name': "ida b wells", 'cc_email': 'ida.b.wells@gmail.com'},
             # "test5": {'raw_to_string': 'Ida B Wells\n', 'to_name': "ida b wells"},
         }
         #
@@ -363,6 +409,7 @@ class Test(unittest.TestCase):
             got_msg_list = em.parse_references(test["msg_obj"])
             self.assertEqual(want_msg_list[key], got_msg_list, "Parse references error")
 
+# TODO test all pairs - not everything covered
     def test_parse_everything_else(self):
         msg_input = {
             "test1": {
@@ -394,9 +441,9 @@ class Test(unittest.TestCase):
         want_msg_list = {
             "test1": {'message_id': '<voting-rights-id@mail.gmail.com>' },
             "test2": {},
-            "test3": {},
+            "test3": {'content_type': 'text/plain; charset="utf-8"'},
             "test4": {},
-            "test5": {'subject': '19th ammendment'},
+            "test5": {'subject': '19th Ammendment'},
             "test6": {'in_reply_to': '<voting-rights-id@mail.gmail.com>'},
         }
 
@@ -415,11 +462,14 @@ class Test(unittest.TestCase):
             "test1": {
                 "comparison_type":"Test processing msg list",
                 "msg": self.ex_parsed_msg_single[0]
+            },
+            "test2": {
+                "comparison_type":"Test processing msg list with author replacing from and cc is captured",
+                "msg": self.ex_parsed_msg_singl_auth_cc[0]
             }
         }
         want_json = {
             "test1": {'refs': [{'ref': '<voting-rights-id@mail.gmail.com>'}],
-                    'references': '<voting-rights-id@mail.gmail.com>',
                     'raw_from_string': 'UK Parliment <uk.parliment@gmail.com>',
                     'from_name': 'uk parliment',
                     'from_email': 'uk.parliment@gmail.com',
@@ -429,10 +479,26 @@ class Test(unittest.TestCase):
                     'subject': 'Voting Rights',
                     'raw_date_string': 'Mon, July 2 1928 13:46:03 +0100',
                     'date': '1928-07-02 12:46:03',
+                    'content_type': 'text/plain; charset="utf-8"',
                     'message_id': '<voting-rights-id@mail.gmail.com>',
                     'body': 'Full women voting rights passed in U.K.\n\n"We are here, not because we are law-breakers; we are here in our efforts to become law-makers."',
                     'references': '<voting-rights-id@mail.gmail.com>',
                     'list': 'pankhurst-bucket'},
+            "test2": {'refs': [],
+                      'raw_from_string': 'US Congress <us.congress@gmail.com>',
+                      'from_name': 'us congress',
+                      'from_email': 'us.congress@gmail.com',
+                      'raw_to_string': 'ida.b.wells@gmail.com',
+                      'to_email': 'ida.b.wells@gmail.com',
+                      'raw_cc_string': 'Emmeline Pankhurst <emmeline.pankhurst@gmail.com>',
+                      'cc_name': 'emmeline pankhurst',
+                      'cc_email': 'emmeline.pankhurst@gmail.com',
+                      'subject': 'Voter Rights Act',
+                      'raw_date_string': 'Wed, Aug 6 1965 15:32:20 +0100',
+                      'date': '1965-08-06 14:32:20',
+                      'message_id': '<voter-rights-act-id@mail.gmail.com>',
+                      'body': 'Voter`s Rights Act outlawed discriminatory voting practices.\n\n  From 1913 suffrage march in DC, "Either I go with you or not at all. I am not taking this stand because I personally wish for recognition. I am doing it for the future benefit of my whole race."',
+                      'list': 'voter-bucket'},
         }
         #
         for key, test in msg_input.items():
