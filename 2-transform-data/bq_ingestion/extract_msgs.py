@@ -325,9 +325,8 @@ def decompress_line_by_line(blob, fpath, split_regex_value):
             # Catches last message
             if message_lines:
                 messages_list_result.append(b''.join(message_lines))
-    except e:
-        print(e)
-        print('{} not successfully gunzipped'.format(fpath))
+    except Exception as err:
+        print('{} not successfully gunzipped and throws error: {}'.format(fpath, err))
     # Delete temp file
     finally:
         if os.path.exists(temp_file):
