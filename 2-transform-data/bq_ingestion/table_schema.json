@@ -1,0 +1,120 @@
+[
+  {
+      "name": "from_name",
+      "type": "STRING",
+      "mode": "NULLABLE"
+  },
+  {
+      "name": "from_email",
+      "type": "STRING",
+      "mode": "NULLABLE"
+  },
+  {
+      "name": "raw_from_string",
+      "type": "STRING",
+      "mode": "NULLABLE"
+  },
+  {
+    "name": "to_name",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "to_email",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "raw_to_string",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "cc_name",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "cc_email",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "raw_cc_string",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+      "name": "subject",
+      "type": "STRING",
+      "mode": "NULLABLE"
+  },
+  {
+      "name": "date",
+      "type": "DATETIME",
+      "mode": "NULLABLE"
+  },
+  {
+    "name": "raw_date_string",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+      "name": "message_id",
+      "type": "STRING",
+      "mode": "NULLABLE"
+  },
+  {
+      "name": "in_reply_to",
+      "type": "STRING",
+      "mode": "NULLABLE"
+  },
+  {
+    "name": "refs",
+    "type": "RECORD",
+    "mode": "REPEATED",
+    "fields": [
+      {
+        "name": "ref",
+        "type": "STRING",
+        "mode": "NULLABLE"
+      }
+    ]
+  },
+  {
+      "name": "raw_refs_string",
+      "type": "STRING",
+      "mode": "NULLABLE",
+      "fields": []
+  },
+  {
+      "name": "body",
+      "type": "STRING",
+      "mode": "NULLABLE"
+  },
+  {
+    "name": "body_bytes",
+    "type": "BYTES",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "content_type",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "log",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "mailing_list",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "filename",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  }
+]
