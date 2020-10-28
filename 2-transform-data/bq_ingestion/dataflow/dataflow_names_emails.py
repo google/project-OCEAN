@@ -157,9 +157,9 @@ if __name__ == '__main__':
 # GOOGLE_APPLICATION_CREDENTIALS locally.
 # python names_emails.py \
 #   --region $REGION \
-#   --input 'project-ocean-281819:mail_archives.names_emails' \
-#   --output1 'project-ocean-281819:mail_archives.emails_name_test2' \
-#   --output2 'project-ocean-281819:mail_archives.names_email_test2' \
+#   --input '[PROJECT ID]:mail_archives.names_emails' \
+#   --output1 '[PROJECT ID]:mail_archives.emails_name_test2' \
+#   --output2 '[PROJECT ID]:mail_archives.names_email_test2' \
 #   --runner DataflowRunner \
 #   --project $PROJECT \
 #   --temp_location gs://$BUCKET/tmp/
