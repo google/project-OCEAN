@@ -1,5 +1,5 @@
 ---
-name: Data source recommendation
+name: Data Source Recommendation
 about: Recommendations for data sources related to open source ecosystems
 title: "[DATA SOURCE]"
 labels: documentation, enhancement
