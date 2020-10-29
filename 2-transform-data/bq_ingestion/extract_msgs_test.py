@@ -80,6 +80,7 @@ class Test(unittest.TestCase):
                                       ('Message-ID','<voting-rights-id@mail.gmail.com>'),
                                       ("mailing_list", "pankhurst-bucket"),
                                       ('filename', '1999-04.mbox.gzip'),
+                                      ('time_stamp', 'AUTO'),
                                       ('Body','Full women voting rights passed in U.K.\n\n"We are here, not because we are law-breakers; we are here in our efforts to become law-makers."\n')]]
         self.ex_parsed_msg_single_auth_cc =[[('From', 'UK Parliment <uk.parliment@gmail.com>'),
                                             ('To', 'ida.b.wells@gmail.com'),
@@ -94,6 +95,7 @@ class Test(unittest.TestCase):
                                             ('References:' ,'<voter-rights-act-id@mail.gmail.com>'),
                                             ('mailing_list', 'voter-bucket'),
                                             ('filename', '1999-04.mbox.gzip'),
+                                             ('time_stamp', 'AUTO'),
                                             ('Body', '\nVoter`s Rights Act outlawed discriminatory voting practices.\n\nFrom 1913 suffrage march in DC, "Either I go with you or not at all. I am not taking this stand because I personally wish for recognition. I am doing it for the future benefit of my whole race."\n')]]
         self.ex_parsed_msg_mult = [[('From', 'us.congress at gmail.com (US Congress)'),
                                     ('To', 'staton.anthony@gmail.com'),
@@ -106,6 +108,7 @@ class Test(unittest.TestCase):
                                     ('References', '<19th-ammendment-id@mail.gmail.com>'),
                                     ('mailing_list', 'voter-bucket'),
                                     ('filename', '1999-04.txt'),
+                                    ('time_stamp', 'AUTO'),
                                     ('Body', '19th Amemndment ratified in U.S. granting women the right to vote after the final vote in Tennessee.\n\nAs per the Declaration of Sentiments in 1848, "We hold these truths to be self-evident: that all men and women are created equal; that they are endowed by their Creator with certain inalienable rights; that among these are life, liberty, and the pursuit of happiness."\n')],
                                    [('From', 'us.congress at gmail.com (US Congress)'),
                                     ('To', 'ida.b.wells@gmail.com'),
@@ -118,6 +121,7 @@ class Test(unittest.TestCase):
                                     ('References', '<voter-rights-act-id@mail.gmail.com>'),
                                     ('mailing_list', 'voter-bucket'),
                                     ('filename', '1999-04.txt'),
+                                    ('time_stamp', 'AUTO'),
                                     ('Body', 'Voter`s Rights Act outlawed discriminatory voting practices.\n\nFrom 1913 suffrage march in DC, "Either I go with you or not at all. I am not taking this stand because I personally wish for recognition. I am doing it for the future benefit of my whole race."\n')]]
 
     # TODO is iso8859 really being tested?
@@ -284,13 +288,6 @@ class Test(unittest.TestCase):
         for key, test in msg_input.items():
             # print(test['comparison_type'])
             got_msg_list = em.get_msg_objs_list(test["msgs"], test["bucketname"], test["filename"])
-            for msg in got_msg_list:
-                for indx, (msg_key, _) in enumerate(msg):
-                    if msg_key == 'body_bytes':
-                        msg.pop(indx)
-                        break
-                self.assertEqual(msg_key, 'body_bytes', "Body bytes missing get msg objects")
-            # Remove body_bytes content from comparison
             self.assertEqual(want_msg_list[key], got_msg_list, "Get msg objects error")
 
 
@@ -306,17 +303,15 @@ class Test(unittest.TestCase):
                     "msg_obj": email.message_from_string('What is the Voter Rights Act?\n'),
             }
         }
-        want_msg_list = {
+        want_body = {
             "test1": [('Body', 'Full women voting rights passed in U.K.\n\n"We are here, not because we are law-breakers; we are here in our efforts to become law-makers."\n')],
             "test2": [('Body', 'What is the Voter Rights Act?\n')],
         }
         #
         for key, test in msg_input.items():
             # print(test['comparison_type'])
-            got_msg_list = em.parse_body(test["msg_obj"])
-            self.assertEqual(got_msg_list[-1][0], 'body_bytes', "Body bytes missing in test: " + test['comparison_type'])
-            # Remove body_bytes content from comparison
-            self.assertEqual(want_msg_list[key], got_msg_list[:-1], "Parse body error")
+            got_body = em.parse_body(test["msg_obj"])
+            self.assertEqual(want_body[key], got_body, "Parse body error")
 
     # TODO test empty date and all the exceptions
     def test_parse_datestring(self):
@@ -543,7 +538,8 @@ class Test(unittest.TestCase):
                     'body': 'Full women voting rights passed in U.K.\n\n"We are here, not because we are law-breakers; we are here in our efforts to become law-makers."',
                     'raw_refs_string': '<voting-rights-id@mail.gmail.com>',
                     'mailing_list': 'pankhurst-bucket',
-                      'filename': '1999-04.mbox.gzip'
+                      'filename': '1999-04.mbox.gzip',
+                      'time_stamp': 'AUTO',
                     },
             "test2": {'refs': [],
                       'raw_from_string': 'US Congress <us.congress@gmail.com>',
@@ -560,13 +556,15 @@ class Test(unittest.TestCase):
                       'message_id': '<voter-rights-act-id@mail.gmail.com>',
                       'body': 'Voter`s Rights Act outlawed discriminatory voting practices.\n\nFrom 1913 suffrage march in DC, "Either I go with you or not at all. I am not taking this stand because I personally wish for recognition. I am doing it for the future benefit of my whole race."',
                       'mailing_list': 'voter-bucket',
-                      'filename': '1999-04.mbox.gzip',},
+                      'filename': '1999-04.mbox.gzip',
+                      'time_stamp': 'AUTO',
+                      },
             "test3":{'refs': [],
                      'raw_to_string': 'ida.b.wells@gmail.com',
                      'to_email': 'ida.b.wells@gmail.com',
                      'subject': 'Voter Rights Act',
                      'mailing_list': 'voter-bucket',
-                     'filename': '1999-04.mbox.gzip'
+                     'filename': '1999-04.mbox.gzip',
             }
         }
         #

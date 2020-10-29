@@ -33,7 +33,7 @@ from google.api_core.exceptions import BadRequest
 
 # TODO parallelize the code to run faster
 
-ALLOWED_FIELDS = set(['from', 'subject', 'date', 'message_id', 'in_reply_to', 'references', 'body', 'mailing_list', 'to', 'cc', 'raw_date_string', 'body_bytes', 'log', 'content_type', 'filename'])
+ALLOWED_FIELDS = set(['from', 'subject', 'date', 'message_id', 'in_reply_to', 'references', 'body', 'mailing_list', 'to', 'cc', 'raw_date_string', 'log', 'content_type', 'filename', 'time_stamp'])
 IGNORED_FIELDS = set(['delivered_to', 'received', 'mime_version', 'content_transfer_encoding'])
 
 def list_bucket_filenames(storage_client, bucketname, prefix):
@@ -112,18 +112,14 @@ def get_msgs_from_gcs(storage_client, bucketname, fpath):
     try:
         if 'text/plain' in blob.content_type:
             # Parse and group messages using /n for specific cases in Golang messages
-            # split_regex_value = '(\/n[RMX].*[\d;a-z])'
             split_regex_value = r'(\/n(.*?)(?:Received:|MIME-Version|X-Recieved:|X-BeenThere:))'
             add_split_val = '/n'
             messages_blob = blob.download_as_text()
             # Swap all Send reply to or Reply-to with In-Reply-To
             messages_blob = re.sub(r'^^Reply-To:', 'In-Reply-To:', messages_blob)
             # TODO dropping this now that the regex val is more specific but leaving in for now in case there is a need.
-            # Remove all html content that is a duplicate of the message content in Google Groups
-            # messages_blob = re.sub(r'<html>((.|\n)*?)\/html>', '', messages_blob)
         elif 'application/x-gzip' in blob.content_type:
             #Parse and group messages using From in Python messages
-            # split_regex_value = '(From(.*?)(?=(\d{2}):(\d{2}):(\d{2}) (\d{4})))'
             # Looks for split where there are two lines starting with From and the second has a :
             # Trying to ignore inline reponses in body when '> From:' exists and not capture From in the body message like 'From 1913 ...'
             split_regex_value = r'(From[^:].*\n?(?=From:))'
@@ -144,12 +140,12 @@ def get_msgs_from_gcs(storage_client, bucketname, fpath):
         print('Getting GCS data Error: {}. Check the file {} exists and spelled correctly.'.format(err, fpath))
 
     if not messages_list_result and split_regex_value and messages_blob:
-        # Split messages into a list through regex to find wanted splits, add unique split value, split on that unique value and filter for any empty values in list. Goal avoid edge cases and retain core info that are part of some split regex value.
+        # Split messages into a list through regex, add unique split value, split on that unique value and filter for any empty values in list. Goal avoid edge cases and retain core info that are part of split regex value.
         messages_list_result = list(filter(None, re.sub(split_regex_value, split_val+"\\1", messages_blob).split(split_val+add_split_val)))
 
     return messages_list_result
 
-# TODO apply DLP to PII esp before appending body_bytes - to, from, cc, in-reply-to, message-id, references | email and names and any references that include email addresses
+# TODO apply DLP to PII (email and names and any references that include email addresses) in: to, from, cc, in-reply-to, message-id, references
 def get_msg_objs_list(msgs, bucketname, filename):
     """Parse the msg texts into a list of header items per msg and pull out body"""
     msg_list = []
@@ -157,26 +153,27 @@ def get_msg_objs_list(msgs, bucketname, filename):
     for msg in msgs:
         if msg:  # then parse the message.
             msg_parts = []
-            # TODO: is error-handling needed here? It doesn't appear to fail with the current archives.
             res = email.parser.Parser().parsestr(msg)
             msg_parts.extend(res.items())
             msg_parts.append(('mailing_list', bucketname))
             msg_parts.append(('filename', filename))
+            # Passing in time_stamp and AUTO to BQ generates an automatic timestamp for the row
+            msg_parts.append(('time_stamp', 'AUTO'))
             msg_parts.extend(parse_body(res))
             msg_list.append(msg_parts)
 
     return msg_list
 
 # TODO find better way to convert the base64 bytestring to a a string for the json bq ingestion
-def encode_body(body):
-    """
-    Include base64-ified bytestring for the body to bigquery to provide backup in case decoding is corrupted. This may be redundant and if so remove
-    """
-    # it out)
-    if type(body) is str:
-        body = body.encode()
-    b64_bstring = base64.b64encode(body)
-    return (str(b64_bstring)[2:])[:-1]
+# def encode_body(body):
+#     """
+#     Include base64-ified bytestring for the body to bigquery to provide backup in case decoding is corrupted. This may be redundant and if so remove
+#     """
+#     # it out)
+#     if type(body) is str:
+#         body = body.encode()
+#     b64_bstring = base64.b64encode(body)
+#     return (str(b64_bstring)[2:])[:-1]
 
 
 def parse_body(msg_object):
@@ -197,7 +194,6 @@ def parse_body(msg_object):
 
     if body:
         body_objects.append(('Body', body))
-        body_objects.append(('body_bytes', encode_body(body)))
     return body_objects
 
 # TODO: Python chat channel, confirmed this approach | alternative if/elif potential but need to confirm will not miss trying all options without throwing one exception that stops it
@@ -298,8 +294,7 @@ def parse_references(raw_reference):
 
     # Store reference strings
     ref_objects['raw_refs_string'] = refs_string
-    # TODO: there seems to be a rare case where there's info in parens following a ref,
-    # that prevents the regexp below from working properly. worth fixing?
+    # TODO: there seems to be a rare case where there's info in parens following a ref, that prevents the regexp below from working properly. worth fixing?
     r1 = re.sub(r'>\s*<', '>|<', refs_string)
     refs = r1.split('|')
     # print('got refs: {}', refs)
@@ -317,15 +312,13 @@ def parse_everything_else(ee_raw):
 
     if ee_key in ALLOWED_FIELDS:
         try:
-            ee_objects[ee_key] = ee_raw.strip()  # get rid of any leading/trailing whitespace
+            # Remove  leading/trailing whitespace
+            ee_objects[ee_key] = ee_raw.strip()
         except AttributeError as err:
             print('for *{}*, got error {} for {}'.format(ee_key, err, ee_raw))
             ee_objects[ee_key] = '{}'.format(ee_raw.strip())
     # elif ee_key in IGNORED_FIELDS:
     #     print('****Ignoring unsupported message field: {} in msg {}'.format(ee_key, ee_raw))
-
-    # TODO what to do with fields not in ignore or allowed?
-        # time.sleep(2)
 
     return ee_objects
 
@@ -347,20 +340,9 @@ def convert_msg_to_json(msg_objects):
         else:
             print("{} doesn't have a value from object: {}.".format(obj_key, msg_objects))
         json_result.update(json_format_message_part)
+
     return json_result
 
-# TODO Review this should be deleted
-# def format_schema(schema):
-#     formatted_schema = []
-#     for row in schema:
-#         if row["type"] == "RECORD":
-#             r_schema = format_schema(row["fields"])
-#             formatted_schema.append(bigquery.SchemaField(row['name'], row['type'], row['mode'], r_schema))
-#         else:
-#             formatted_schema.append(bigquery.SchemaField(row['name'], row['type'], row['mode']))
-#     return formatted_schema
-
-# TODO catch empty content
 def store_in_bigquery(client, json_rows, table_id, chunk_size):
     """Insert a list of message dicts into the given BQ table.  chunk_size determines how many
     are loaded at once. (If the payload is too large, it will throw an error.)
@@ -384,7 +366,7 @@ def store_in_bigquery(client, json_rows, table_id, chunk_size):
                 print("This json row did not load to BigQuery: {} and threw this error: {}.".format(json_row, errors))
             else:
                 num_rows_loaded += chunk_size
-                print("{} rows have been added without error.".format(num_rows_loaded))
+                print("{} rows or less have been added without error.".format(num_rows_loaded))
         except BadRequest as err:
             print("{} error thrown loading json_row to BigQuery. Trying to load again with reduced chunk size.".format(err))
             reduce_chunk_size = int(chunk_size/2)
@@ -448,12 +430,9 @@ def main():
 
             if args.ingest:
                 store_in_bigquery(bigquery_client, json_result, tableid, args.chunk_size)
-                # time.sleep(1)
 
         else:
             print('*****No msgs obtained for {}'.format(filename))
-            # time.sleep(5)
-
 
 if __name__ == "__main__":
     main()
