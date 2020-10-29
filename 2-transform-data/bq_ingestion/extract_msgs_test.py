@@ -332,11 +332,11 @@ class Test(unittest.TestCase):
                 "comparison_type": "Test day month format w/o week day w/ 1 dig date and 8 hr GMT offset",
                 "input":("Date", "6 Nov 2006 11:11:19 -0800")},
             "test6": {
-                "comparison_type": "Test standard date format and timezone letters but no digit offset",
-                "input": ("Date", "Wed, 25 Oct 2006 19:21:24 GMT")},
+                "comparison_type": "Test standard date format and w/o dig offset and only timezone notation",
+                "input": ("Date", "Wed, 25 Oct 2006 19:21:24 CST")},
             "test7": {
-                "comparison_type": "Test day month format w/o week day w/ 2 dig date and 8 hr GMT offset and timezone note",
-                "input": ("Date", "25 May 2006 03:11:24 GMT") },
+                "comparison_type": "Test day month format w/o week day w/ 2 dig date and w/o dig offset and only timezone notation",
+                "input": ("Date", "25 May 2006 03:11:24 EDT") },
             "test9": {
                 "comparison_type": "Test missing digets on time offset",
                 "input": ("Date", "Sun, 05 Nov 2000 19:04:06 -050")},
@@ -363,9 +363,9 @@ class Test(unittest.TestCase):
             "test4": {'date': '2001-02-13 07:17:03',
                   'raw_date_string': 'Tue, 13 Feb 2001 08:17:03 +0100 (MET)'},
             "test5": {'date': '2006-11-06 19:11:19', 'raw_date_string': '6 Nov 2006 11:11:19 -0800'},
-            "test6": {'date': '2006-10-25 19:21:24',
-                    'raw_date_string': 'Wed, 25 Oct 2006 19:21:24 GMT'},
-            "test7": {'date': '2006-05-25 03:11:24', 'raw_date_string': '25 May 2006 03:11:24 GMT'},
+            "test6": {'date': '2006-10-26 01:21:24',
+                    'raw_date_string': 'Wed, 25 Oct 2006 19:21:24 CST'},
+            "test7": {'date': '2006-05-25 07:11:24', 'raw_date_string': '25 May 2006 03:11:24 EDT'},
             "test9": {'date': '2000-11-06 00:04:06', 'raw_date_string': 'Sun, 05 Nov 2000 19:04:06 -050'},
             "test10": {'date': '2000-05-26 07:17:50', 'raw_date_string': 'Fri, 26 May 2000 09:17:50 +0200 (MET DST)'},
             "test11": {'date': '2000-11-05 19:04:06', 'raw_date_string': 'Sun, 05 Nov 2000 19:04:06  0000'},
