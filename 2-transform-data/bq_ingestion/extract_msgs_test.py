@@ -330,10 +330,6 @@ class Test(unittest.TestCase):
             "comparison_type": "Test day month format w/o week day and w/ 2 dig date and pos 2 hr GMT offset",
             "input": ("", "15 Oct 2000 19:52:16 +0200"),
             },
-
-            "test3": {
-                "comparison_type":"Test standard date format w/ 2 dig date and pos 2 hr GMT offset",
-                "input":("Date", "Wed, 19 May 1999 03:10:15 +0200")},
             "test4": {
                 "comparison_type":"Test standard date format w/ 2 dig date and pos 1 hr GMT offset and timezone note",
                 "input":("Date", "Tue, 13 Feb 2001 08:17:03 +0100 (MET)")},
@@ -346,9 +342,6 @@ class Test(unittest.TestCase):
             "test7": {
                 "comparison_type": "Test day month format w/o week day w/ 2 dig date and 8 hr GMT offset and timezone note",
                 "input": ("Date", "25 May 2006 03:11:24 GMT") },
-            "test8": {
-                "comparison_type": "Test day of week day and mont w/ 1 dig date and nothing else",
-                "input": ("Date", "Sat, 6 Aug")},
             "test9": {
                 "comparison_type": "Test missing digets on time offset",
                 "input": ("Date", "Sun, 05 Nov 2000 19:04:06 -050")},
@@ -372,22 +365,18 @@ class Test(unittest.TestCase):
             "test1": {'date': '1965-08-07 06:11:18',
                     'raw_date_string': 'Sat, 6 Aug 1965 22:11:18 -0800'},
             "test2": {'date': '2000-10-15 17:52:16', 'raw_date_string': '15 Oct 2000 19:52:16 +0200'},
-            "test3": {'date': '1999-05-19 01:10:15',
-                    'raw_date_string': 'Wed, 19 May 1999 03:10:15 +0200'},
-            "test4": {'date': '2001-02-13 15:17:03',
+            "test4": {'date': '2001-02-13 07:17:03',
                   'raw_date_string': 'Tue, 13 Feb 2001 08:17:03 +0100 (MET)'},
             "test5": {'date': '2006-11-06 19:11:19', 'raw_date_string': '6 Nov 2006 11:11:19 -0800'},
             "test6": {'date': '2006-10-25 19:21:24',
                     'raw_date_string': 'Wed, 25 Oct 2006 19:21:24 GMT'},
             "test7": {'date': '2006-05-25 03:11:24', 'raw_date_string': '25 May 2006 03:11:24 GMT'},
-            "test8": {'date': '2020-08-06 07:00:00', 'raw_date_string': 'Sat, 6 Aug'},
             "test9": {'date': '2000-11-06 00:04:06', 'raw_date_string': 'Sun, 05 Nov 2000 19:04:06 -050'},
             "test10": {'date': '2000-05-26 07:17:50', 'raw_date_string': 'Fri, 26 May 2000 09:17:50 +0200 (MET DST)'},
             "test11": {'date': '2000-11-05 19:04:06', 'raw_date_string': 'Sun, 05 Nov 2000 19:04:06  0000'},
             "test12": {'date': '2000-12-08 17:37:24', 'raw_date_string': 'Fri, 8 Dec 2000 09:37:24 -0800 (Pacific Standard Time)'},
             "test13": {'date': '2000-12-15 14:53:48', 'raw_date_string': 'Fri, 15 Dec 2000 16:53:48 +0200 (GMT-2)'},
             "test14": {'date': '2000-04-01 17:00:00', 'raw_date_string': 'Sat, 1 Apr 2000 12:00:00 -0500 CDT'}
-
         }
 
         for key, test in date_input.items():
