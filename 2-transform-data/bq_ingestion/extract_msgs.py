@@ -25,6 +25,7 @@ import time
 import json
 
 from dateutil import parser
+import pytz
 
 from google.cloud import storage
 from google.cloud import bigquery
@@ -35,6 +36,53 @@ from google.api_core.exceptions import BadRequest
 
 ALLOWED_FIELDS = set(['from', 'subject', 'date', 'message_id', 'in_reply_to', 'references', 'body', 'mailing_list', 'to', 'cc', 'raw_date_string', 'log', 'content_type', 'filename', 'time_stamp'])
 IGNORED_FIELDS = set(['delivered_to', 'received', 'mime_version', 'content_transfer_encoding'])
+
+# Code to generate timezone map found at https://stackoverflow.com/questions/1703546/parsing-date-time-string-with-timezone-abbreviated-name-in-python/4766400#4766400
+def get_timezone_map():
+    tz_str = '''-12 Y
+    -11 X NUT SST
+    -10 W CKT HAST HST TAHT TKT
+    -9 V AKST GAMT GIT HADT HNY
+    -8 U AKDT CIST HAY HNP PST PT
+    -7 T HAP HNR MST PDT
+    -6 S CST EAST GALT HAR HNC MDT
+    -5 R CDT COT EASST ECT EST ET HAC HNE PET
+    -4 Q AST BOT CLT COST EDT FKT GYT HAE HNA PYT
+    -3 P ADT ART BRT CLST FKST GFT HAA PMST PYST SRT UYT WGT
+    -2 O BRST FNT PMDT UYST WGST
+    -1 N AZOT CVT EGT
+    0 Z EGST GMT UTC WET WT
+    1 A CET DFT WAT WEDT WEST
+    2 B CAT CEDT CEST EET SAST WAST
+    3 C EAT EEDT EEST IDT MSK
+    4 D AMT AZT GET GST KUYT MSD MUT RET SAMT SCT
+    5 E AMST AQTT AZST HMT MAWT MVT PKT TFT TJT TMT UZT YEKT
+    6 F ALMT BIOT BTT IOT KGT NOVT OMST YEKST
+    7 G CXT DAVT HOVT ICT KRAT NOVST OMSST THA WIB
+    8 H ACT AWST BDT BNT CAST HKT IRKT KRAST MYT PHT SGT ULAT WITA WST
+    9 I AWDT IRKST JST KST PWT TLT WDT WIT YAKT
+    10 K AEST ChST PGT VLAT YAKST YAPT
+    11 L AEDT LHDT MAGT NCT PONT SBT VLAST VUT
+    12 M ANAST ANAT FJT GILT MAGST MHT NZST PETST PETT TVT WFT
+    13 FJST NZDT
+    11.5 NFT
+    10.5 ACDT LHST
+    9.5 ACST
+    6.5 CCT MMT
+    5.75 NPT
+    5.5 SLT
+    4.5 AFT IRDT
+    3.5 IRST
+    -2.5 HAT NDT
+    -3.5 HNT NST NT
+    -4.5 HLV VET
+    -9.5 MART MIT'''
+    tzd = {}
+    for tz_descr in map(str.split, tz_str.split('\n')):
+        tz_offset = int(float(tz_descr[0]) * 3600)
+        for tz_code in tz_descr[1:]:
+            tzd[tz_code] = tz_offset
+    return tzd
 
 def list_bucket_filenames(storage_client, bucketname, prefix):
     """Get gcs bucket filename list"""
@@ -197,7 +245,6 @@ def parse_body(msg_object):
     return body_objects
 
 # TODO: Python chat channel, confirmed this approach | alternative if/elif potential but need to confirm will not miss trying all options without throwing one exception that stops it
-# TODO use something like striptime to handle timezones. They are currently being ignored when an offset doesn't exist
 def parse_datestring(datestring):
     """Given a date string, parse date to the format year-month-dayThour:min:sec and convert to DATETIME-friendly utc time.
     All the different formats are probably due to ancient mail client variants. Older messages have issues.
@@ -205,9 +252,10 @@ def parse_datestring(datestring):
     datestring = datestring[1]
     date_objects = {}
     date_objects['raw_date_string'] = datestring.strip()
+    tzd = get_timezone_map()
 
     try:
-        formated_date = parser.parse(datestring)
+        formated_date = parser.parse(datestring, tzinfos=tzd)
     except (TypeError, parser._parser.ParserError) as err:
         print('Parsing error: {}. For datestring: {}. Trying alternatives.'.format(datestring, err))
         formated_date = datestring.replace('.', ':')
@@ -237,7 +285,7 @@ def parse_datestring(datestring):
                 print("Tried parse 3: (.*)\(.*\) and got error: {}".format(err3))
                 try:
                     parsed_date = re.search(r'(.*) [a-zA-Z]+$', datestring)
-                    formated_date = parser.parse(parsed_date[1])
+                    formated_date = parser.parse(parsed_date[1], tzinfos=tzd)
                 except (TypeError, parser._parser.ParserError) as err4:
                     print("Tried parse 4: '(.*) [a-zA-Z]+$' and got error: {}".format(err4))
                     try:
