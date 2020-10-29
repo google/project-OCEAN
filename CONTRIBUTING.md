@@ -18,7 +18,7 @@ again.
 
 ## Issues
 
-Use the [Issue Template](docs/ISSUE_TEMPLATE.md) to log issues.
+Use the [Issue Template](.github/ISSUE_TEMPLATE/ISSUE_TEMPLATE.md) to log standard issues.
 
 ## Pull Requests 
 
