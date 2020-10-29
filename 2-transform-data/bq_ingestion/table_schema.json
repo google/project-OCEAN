@@ -93,11 +93,6 @@
       "mode": "NULLABLE"
   },
   {
-    "name": "body_bytes",
-    "type": "BYTES",
-    "mode": "NULLABLE"
-  },
-  {
     "name": "content_type",
     "type": "STRING",
     "mode": "NULLABLE"
@@ -116,5 +111,9 @@
     "name": "filename",
     "type": "STRING",
     "mode": "NULLABLE"
+  },
+  {
+    "name": "time_stamp",
+    "type": "TIMESTAMP"
   }
 ]
