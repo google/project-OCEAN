@@ -113,7 +113,7 @@ def get_msgs_from_gcs(storage_client, bucketname, fpath):
         if 'text/plain' in blob.content_type:
             # Parse and group messages using /n for specific cases in Golang messages
             # split_regex_value = '(\/n[RMX].*[\d;a-z])'
-            split_regex_value = '(\/n(.*?)(?:Received:|MIME-Version|X-Recieved:|X-BeenThere:))'
+            split_regex_value = r'(\/n(.*?)(?:Received:|MIME-Version|X-Recieved:|X-BeenThere:))'
             add_split_val = '/n'
             messages_blob = blob.download_as_text()
             # Swap all Send reply to or Reply-to with In-Reply-To
@@ -126,7 +126,7 @@ def get_msgs_from_gcs(storage_client, bucketname, fpath):
             # split_regex_value = '(From(.*?)(?=(\d{2}):(\d{2}):(\d{2}) (\d{4})))'
             # Looks for split where there are two lines starting with From and the second has a :
             # Trying to ignore inline reponses in body when '> From:' exists and not capture From in the body message like 'From 1913 ...'
-            split_regex_value = '(From[^:].*\n?(?=From:))'
+            split_regex_value = r'(From[^:].*\n?(?=From:))'
             add_split_val = ''
             #Unzip gzip and decode text
             message_bytes = gzip.decompress(blob.download_as_bytes())
@@ -216,31 +216,31 @@ def parse_datestring(datestring):
         print('Parsing error: {}. For datestring: {}. Trying alternatives.'.format(datestring, err))
         formated_date = datestring.replace('.', ':')
         try:
-            if re.search('(.* [-+]\d{4}).*$', datestring):
+            if re.search(r'(.* [-+]\d{4}).*$', datestring):
                 pass
-            elif re.search('(.* [-+]\d{1,3}).*$', datestring):
+            elif re.search(r'(.* [-+]\d{1,3}).*$', datestring):
                 print("Datestring {} was missing full timezone format.".format(datestring))
                 ds_list = datestring.split(" ")
                 # len should be 5 including the +/- sign
                 num_zero_add = 5 - len(ds_list[-1])
                 ds_list[-1] = ds_list[-1] + "0"*num_zero_add
                 datestring = " ".join(ds_list)
-            elif re.search('(.* \d{4}).*$', datestring):
+            elif re.search(r'(.* \d{4}).*$', datestring):
                 ds_list = datestring.split(" ")
                 if ds_list[-1] == "0000" or ds_list[-1] == "0100":
                     ds_list[-1] = "+" + ds_list[-1]
                 datestring = " ".join(ds_list)
-            parsed_date = re.search('(.* [-+]\d{4}).*$', datestring)
+            parsed_date = re.search(r'(.* [-+]\d{4}).*$', datestring)
             formated_date = parser.parse(parsed_date[1])
         except (TypeError, parser._parser.ParserError) as err2:
-            print("Tried parse 2: '(.* [-+]\d\d\d\d).*$' and got error: {}".format(err2))
+            print("Tried parse 2: (.* [-+]\d\d\d\d).*$ and got error: {}".format(err2))
             try:
-                parsed_date = re.search('(.*)\(.*\)', datestring)
+                parsed_date = re.search(r'(.*)\(.*\)', datestring)
                 formated_date = parser.parse(parsed_date[1])
             except (TypeError, parser._parser.ParserError) as err3:
-                print("Tried parse 3: '(.*)\(.*\)' and got error: {}".format(err3))
+                print("Tried parse 3: (.*)\(.*\) and got error: {}".format(err3))
                 try:
-                    parsed_date = re.search('(.*) [a-zA-Z]+$', datestring)
+                    parsed_date = re.search(r'(.*) [a-zA-Z]+$', datestring)
                     formated_date = parser.parse(parsed_date[1])
                 except (TypeError, parser._parser.ParserError) as err4:
                     print("Tried parse 4: '(.*) [a-zA-Z]+$' and got error: {}".format(err4))
@@ -300,7 +300,7 @@ def parse_references(raw_reference):
     ref_objects['raw_refs_string'] = refs_string
     # TODO: there seems to be a rare case where there's info in parens following a ref,
     # that prevents the regexp below from working properly. worth fixing?
-    r1 = re.sub('>\s*<', '>|<', refs_string)
+    r1 = re.sub(r'>\s*<', '>|<', refs_string)
     refs = r1.split('|')
     # print('got refs: {}', refs)
     refs_record = [{"ref": x} for x in refs]

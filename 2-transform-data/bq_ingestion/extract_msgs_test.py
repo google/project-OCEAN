@@ -337,7 +337,7 @@ class Test(unittest.TestCase):
                 "comparison_type": "Test day month format w/o week day w/ 1 dig date and 8 hr GMT offset",
                 "input":("Date", "6 Nov 2006 11:11:19 -0800")},
             "test6": {
-                "comparison_type": "Test standard date format w/ 2 dig date and no GMT offset and timezone note",
+                "comparison_type": "Test standard date format and timezone letters but no digit offset",
                 "input": ("Date", "Wed, 25 Oct 2006 19:21:24 GMT")},
             "test7": {
                 "comparison_type": "Test day month format w/o week day w/ 2 dig date and 8 hr GMT offset and timezone note",
@@ -575,9 +575,9 @@ class Test(unittest.TestCase):
             got_json = em.convert_msg_to_json(test["msg"])
             self.assertEqual(want_json[key], got_json, "Convert message to json error")
 
-# TODO simulate load to BQ and test the components of this function esp errors
-def test_store_in_bigquery(self):
-    pass
+    # TODO simulate load to BQ and test the components of this function esp errors
+    def test_store_in_bigquery(self):
+        pass
 
 if __name__ == '__main__':
     unittest.main()
