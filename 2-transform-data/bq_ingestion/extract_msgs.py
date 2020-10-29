@@ -245,7 +245,6 @@ def parse_body(msg_object):
     return body_objects
 
 # TODO: Python chat channel, confirmed this approach | alternative if/elif potential but need to confirm will not miss trying all options without throwing one exception that stops it
-# TODO use something like striptime to handle timezones. They are currently being ignored when an offset doesn't exist
 def parse_datestring(datestring):
     """Given a date string, parse date to the format year-month-dayThour:min:sec and convert to DATETIME-friendly utc time.
     All the different formats are probably due to ancient mail client variants. Older messages have issues.
