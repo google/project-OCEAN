@@ -152,7 +152,6 @@ func setupGCS(t *testing.T) *StorageConnection {
 	return gcs
 }
 
-// TODO test Error 400: Use of this bucket name is restricted:
 func TestCreateBucket(t *testing.T) {
 	ctx := context.Background()
 	storage := setupGCS(t)
@@ -164,29 +163,26 @@ func TestCreateBucket(t *testing.T) {
 		projectID      string
 		wantErr        error
 	}{
-		// Test create bucket
 		{
-			comparisonType: "Test Create is called",
+			comparisonType: "Test Create bucket is called",
 			gcs:            storage,
 			bucketName:     "Environmentalist",
 			projectID:      "Environmentalist",
 			wantErr:        nil,
 		},
-		// Test empty bucket name
 		{
-			comparisonType: "Test Create is not called",
+			comparisonType: "Test Create bucket is not called",
 			gcs:            storage,
 			bucketName:     "Environmentalist",
 			projectID:      "Economist",
 			wantErr:        nil,
 		},
-		// Test empty bucket name
 		{
-			comparisonType: "Test not nil error",
+			comparisonType: "Test empty bucket name and error",
 			gcs:            storage,
 			bucketName:     "",
 			projectID:      "",
-			wantErr:        fmt.Errorf("empty"),
+			wantErr:        emptyBucketName,
 		},
 	}
 	for _, test := range tests {
@@ -202,7 +198,7 @@ func TestCreateBucket(t *testing.T) {
 	}
 }
 
-func TestStoreInBucket(t *testing.T) {
+func TestStoreContentInBucket(t *testing.T) {
 	ctx := context.Background()
 	gcs := setupGCS(t)
 
@@ -210,37 +206,46 @@ func TestStoreInBucket(t *testing.T) {
 		comparisonType string
 		storage        StorageConnection
 		filename       string
-		url            string
+		content        string
+		source         string
 		wantErr        error
 	}{
-		// Test no error
 		{
-			comparisonType: "Test nil error",
+			comparisonType: "Test Store called without error on url content",
 			storage:        *gcs,
 			filename:       "laduke.gz",
-			url:            "https://en.wikipedia.org/wiki/Winona_LaDuke",
+			content:        "https://en.wikipedia.org/wiki/Winona_LaDuke",
+			source:         "url",
 			wantErr:        nil,
 		},
-		// Test empty filename
 		{
-			comparisonType: "Test empty filename",
+			comparisonType: "Test empty filename error",
 			storage:        *gcs,
 			filename:       "",
-			url:            "https://en.wikipedia.org/wiki/Winona_LaDuke",
-			wantErr:        fmt.Errorf("Filename"),
+			content:        "https://en.wikipedia.org/wiki/Winona_LaDuke",
+			source:         "url",
+			wantErr:        emptyFileNameErr,
 		},
-		// Test empty url
 		{
 			comparisonType: "Test empty url",
 			storage:        *gcs,
 			filename:       "laduke.gz",
-			url:            "",
-			wantErr:        fmt.Errorf("HTTP"),
+			content:        "",
+			source:         "url",
+			wantErr:        httpStrRespErr,
+		},
+		{
+			comparisonType: "Test Store called without error on text content",
+			storage:        *gcs,
+			filename:       "laduke.gz",
+			content:        "An American environmentalist, economist, writer who found the Indigenous Women's Network.",
+			source:         "text",
+			wantErr:        nil,
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.comparisonType, func(t *testing.T) {
-			if gotErr := gcs.StoreInBucket(ctx, test.filename, test.url); !errors.Is(gotErr, test.wantErr) {
+			if gotErr := gcs.StoreContentInBucket(ctx, test.filename, test.content, test.source); !errors.Is(gotErr, test.wantErr) {
 				if !strings.Contains(gotErr.Error(), test.wantErr.Error()) {
 					t.Errorf("CreateMMFileName response does not match.\n got: %v\nwant: %v", gotErr, test.wantErr)
 				}

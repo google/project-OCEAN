@@ -33,9 +33,17 @@ import (
 	"strings"
 )
 
+var (
+	httpStrRespErr     = fmt.Errorf("http string")
+	clientErr          = fmt.Errorf("client creation")
+	createBucketErr    = fmt.Errorf("create bucket")
+	emptyBucketName    = fmt.Errorf("empty bucketname")
+	emptyFileNameErr   = fmt.Errorf("empty filename")
+	storageCtxCloseErr = fmt.Errorf("Failed to close storage connection")
+)
+
 type Connection interface {
-	StoreTextContentInBucket(ctx context.Context, fileName, text string) (err error)
-	StoreURLContentInBucket(ctx context.Context, fileName, url string) (err error)
+	StoreContentInBucket(ctx context.Context, fileName, content, source string) (err error)
 }
 
 type StorageConnection struct {
@@ -48,7 +56,7 @@ type StorageConnection struct {
 func (gcs *StorageConnection) ConnectClient(ctx context.Context) (err error) {
 	c, err := storage.NewClient(ctx)
 	if err != nil {
-		err = fmt.Errorf("Failed to create client: %v", err)
+		err = fmt.Errorf("%w failed: %v", clientErr, err)
 		return
 	}
 	client := stiface.AdaptClient(c)
@@ -66,7 +74,7 @@ func (gcs *StorageConnection) CreateBucket(ctx context.Context) (err error) {
 	for {
 		// TODO bucket name validation
 		if gcs.BucketName == "" {
-			err = fmt.Errorf("BucketName entered is empty %v. Re-enter.", gcs.BucketName)
+			err = fmt.Errorf("%w error: %v. Re-enter bucketname.", emptyBucketName, gcs.BucketName)
 			return
 		}
 		attrs, err = buckets.Next()
@@ -77,14 +85,14 @@ func (gcs *StorageConnection) CreateBucket(ctx context.Context) (err error) {
 				Location: "US",
 			}); err != nil {
 				// TODO - add random number to append to bucket name to resolve
-				return fmt.Errorf("Failed to create bucket: %v", err)
+				return fmt.Errorf("%w failed: %v", createBucketErr, err)
 
 			}
 			log.Printf("Bucket %v created.\n", gcs.BucketName)
 			return
 		}
 		if err != nil {
-			err = fmt.Errorf("Issues setting up Bucket due to error: %w. Double check project id.", err)
+			err = fmt.Errorf("%w setup issues error: %v. Double check project id.", createBucketErr, err)
 			return
 		}
 		if attrs.Name == gcs.BucketName {
@@ -96,60 +104,45 @@ func (gcs *StorageConnection) CreateBucket(ctx context.Context) (err error) {
 }
 
 // Store url content in storage.
-func (gcs *StorageConnection) StoreTextContentInBucket(ctx context.Context, fileName, text string) (err error) {
+func (gcs *StorageConnection) StoreContentInBucket(ctx context.Context, fileName, content, source string) (err error) {
+	var response *http.Response
 	//TODO add more filename validation
 	if fileName == "" {
-		return fmt.Errorf("Filename is empty.")
+		return fmt.Errorf("%w", emptyFileNameErr)
 	}
-
 	obj := gcs.bucket.Object(fileName)
 
 	// w implements io.Writer.
 	w := obj.NewWriter(ctx)
 
-	// Copy file into storage
-	_, err = io.Copy(w, strings.NewReader(text))
+	if source == "url" {
+		// Get HTTP response
+		response, err = http.Get(content)
+		if err != nil {
+			return fmt.Errorf("%w response error: %v", httpStrRespErr, err)
+		}
+		defer response.Body.Close()
+
+		if response.StatusCode == http.StatusOK {
+			// Copy file into storage
+			_, err = io.Copy(w, response.Body)
+
+		} else if source == "text" {
+
+			// Copy file into storage
+			_, err = io.Copy(w, strings.NewReader(content))
+		}
+	}
 	if err != nil {
-		log.Printf("Failed to copy %v to bucket with the error: %v", fileName, err)
+		// Note not breaking when a file does not load but logging to investigate.
+		log.Printf("Storage did not copy %v to bucket with the error: %v", fileName, err)
 	}
 
 	if err = w.Close(); err != nil {
-		return fmt.Errorf("Failed to close storage connection: %v", err)
+		return fmt.Errorf("%w: %v", storageCtxCloseErr, err)
 	}
+
 	return
-}
-
-// Store url content in storage.
-func (gcs *StorageConnection) StoreURLContentInBucket(ctx context.Context, fileName, url string) (err error) {
-	var response *http.Response
-	//TODO add more filename validation
-	if fileName == "" {
-		return fmt.Errorf("Filename is empty.")
-	}
-	// Get HTTP response
-	response, err = http.Get(url)
-	if err != nil {
-		return fmt.Errorf("HTTP response returned an error: %v", err)
-	}
-	defer response.Body.Close()
-
-	if response.StatusCode == http.StatusOK {
-		obj := gcs.bucket.Object(fileName)
-
-		// w implements io.Writer.
-		w := obj.NewWriter(ctx)
-
-		// Copy file into storage
-		_, err = io.Copy(w, response.Body)
-		if err != nil {
-			log.Printf("Failed to copy %v to bucket with the error: %v", fileName, err)
-		}
-
-		if err = w.Close(); err != nil {
-			return fmt.Errorf("Failed to close storage connection: %v", err)
-		}
-	}
-	return nil
 }
 
 func main() {
@@ -159,10 +152,10 @@ func main() {
 	gcs := StorageConnection{}
 
 	if err := gcs.ConnectClient(ctx); err != nil {
-		log.Fatalf("Connect GCS failes: %v", err)
+		log.Fatalf("GCS connection failed: %v", err)
 	}
 
 	if err := gcs.CreateBucket(ctx); err != nil {
-		log.Fatalf("Create GCS Bucket failed: %v", err)
+		log.Fatalf("%v", err)
 	}
 }

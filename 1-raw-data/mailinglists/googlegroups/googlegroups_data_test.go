@@ -15,6 +15,7 @@
 package googlegroups
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"reflect"
@@ -23,9 +24,10 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/google/project-OCEAN/1-raw-data/utils"
 )
 
-func TestGetHttpStringResponse(t *testing.T) {
+func TestHttpStringResponse(t *testing.T) {
 	var gotResponseString string
 	var gotErr error
 
@@ -45,7 +47,7 @@ func TestGetHttpStringResponse(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.comparisonType, func(t *testing.T) {
 
-			if gotResponseString, gotErr = httpStringResponse(test.url); !errors.Is(gotErr, test.wantErr) {
+			if gotResponseString, gotErr = utils.StringResponse(test.url); !errors.Is(gotErr, test.wantErr) {
 				t.Errorf("Error response does not match.\n got: %v\nwant: %v", gotErr, test.wantErr)
 			}
 			if strings.Compare(gotResponseString, test.wantResponseString) != 0 {
@@ -108,55 +110,73 @@ func TestGetFileName(t *testing.T) {
 }
 
 func TestGetTotalTopics(t *testing.T) {
-	exCorrectResponseBody := `
-	<html>
-	<head>
-		<title>My document</title>
-	</head>
-		<i>Showing 1-100 of 1891 topics</i>
-  </html>
-		`
-	exMissingResponseBody := `
-	<html>
-	<head>
-		<title>My document</title>
-	</head>
-  </html>
-		`
-	exCorrectDom, _ := goquery.NewDocumentFromReader(strings.NewReader(exCorrectResponseBody))
-	exMissingDom, _ := goquery.NewDocumentFromReader(strings.NewReader(exMissingResponseBody))
+	exCorrectDom100, _ := utils.FakeHttpDomResponse("https://groups.google.com/forum/?_escaped_fragment_=forum/totalTopics100")
+	exCorrectDomLess, _ := utils.FakeHttpDomResponse("https://groups.google.com/forum/?_escaped_fragment_=forum/totalTopicsLess")
+	exMissingDom, _ := utils.FakeHttpDomResponse("https://groups.google.com/forum/?_escaped_fragment_=forum/totalTopicsMissBody")
 
 	var (
 		gotTotalTopics int
-		gotErr         error
 	)
 
 	tests := []struct {
 		comparisonType  string
 		dom             *goquery.Document
 		wantTotalTopics int
-		wantErr         error
 	}{
 		{
-			comparisonType:  "Test regex to read total topics.",
-			dom:             exCorrectDom,
-			wantTotalTopics: 1891,
-			wantErr:         nil,
+			comparisonType:  "Test regex to read total topics more than 100.",
+			dom:             exCorrectDom100,
+			wantTotalTopics: 100,
+		},
+		{
+			comparisonType:  "Test regex to read total topics less than 100.",
+			dom:             exCorrectDomLess,
+			wantTotalTopics: 1,
 		},
 		{
 			comparisonType:  "Test regex if info does not exist.",
 			dom:             exMissingDom,
 			wantTotalTopics: 0,
-			wantErr:         nil,
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.comparisonType, func(t *testing.T) {
-			if gotTotalTopics, gotErr = getTotalTopics(test.dom); !errors.Is(gotErr, test.wantErr) {
-				t.Errorf("Error response does not match.\n got: %v\nwant: %v", gotErr, test.wantErr)
-			}
+			gotTotalTopics = getTotalTopics(test.dom)
 			if gotTotalTopics != test.wantTotalTopics {
 				t.Errorf("Total topic response does not match.\n got: %v\nwant: %v", gotTotalTopics, test.wantTotalTopics)
+			}
+		})
+	}
+}
+
+func TestGetMsgIDsFromDom(t *testing.T) {
+
+	exMsgIdDom, _ := utils.FakeHttpDomResponse("msgIdsFromDom")
+
+	var (
+		gotRawMsgUrl string
+	)
+	tests := []struct {
+		comparisonType string
+		org            string
+		topicId        string
+		group          string
+		dom            *goquery.Document
+		wantRawMsgUrl  string
+	}{
+		{
+			comparisonType: "Output raw msg url",
+			topicId:        "Kamakaʻeha",
+			group:          "queen",
+			dom:            exMsgIdDom,
+			wantRawMsgUrl:  "https://groups.google.com/forum/message/raw?msg=queen/Kamakaʻeha/1891",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.comparisonType, func(t *testing.T) {
+			gotRawMsgUrl = getMsgIDsFromDom(test.org, test.topicId, test.group, test.dom)
+			if strings.Compare(gotRawMsgUrl, test.wantRawMsgUrl) != 0 {
+				t.Errorf("DateKey response does not match.\n got: %v\nwant: %v", gotRawMsgUrl, test.wantRawMsgUrl)
 			}
 		})
 	}
@@ -165,23 +185,8 @@ func TestGetTotalTopics(t *testing.T) {
 func TestTopicIDToRawMsgUrlMap(t *testing.T) {
 	timeMonthCheck, timeYearCheck := time.Now().Month(), time.Now().Year()
 
-	exTopicIDResponseTime := `
-	<html>
-	<table>
-	<tr><td class="subject"><a href="https://groups.google.com/d/topic/golang-checkins/8sv65_WCOS4" title="[tools] internal/lsp/cache: use gopls.mod for the workspace module if it exists">[tools] internal/lsp/cache: use gopls.mod for the workspace module if it exists</a></td><td class="lastPostDate">11:20 AM</td></tr>
-	</table>
-  </html>
-`
-	exTopicIDResponseDate := `
-	<html>
-	<table>
-	<tr><td class="subject"><a href="https://groups.google.com/d/topic/golang-checkins/8sv65_WCOS4" title="[tools] internal/lsp/cache: use gopls.mod for the workspace module if it exists">[tools] internal/lsp/cache: use gopls.mod for the workspace module if it exists</a></td><td class="lastPostDate">9/27/18</td></tr>
-	</table>
-  </html>
-`
-
-	exTopicIdDomTime, _ := goquery.NewDocumentFromReader(strings.NewReader(exTopicIDResponseTime))
-	exTopicIdDomDate, _ := goquery.NewDocumentFromReader(strings.NewReader(exTopicIDResponseDate))
+	exTopicIdDomTime, _ := utils.FakeHttpDomResponse("topicIDToRawMsgUrlMapTime")
+	exTopicIdDomDate, _ := utils.FakeHttpDomResponse("topicIDToRawMsgUrlMapDate")
 
 	var (
 		gotRawMsgURLMap map[string][]string
@@ -190,7 +195,7 @@ func TestTopicIDToRawMsgUrlMap(t *testing.T) {
 	tests := []struct {
 		comparisonType   string
 		org              string
-		group            string
+		groupName        string
 		dom              *goquery.Document
 		wantRawMsgURLMap map[string][]string
 		wantErr          error
@@ -198,7 +203,7 @@ func TestTopicIDToRawMsgUrlMap(t *testing.T) {
 		{
 			comparisonType: "Pull topic ids for time",
 			org:            "",
-			group:          "golang-checkins",
+			groupName:      "golang-checkins",
 			dom:            exTopicIdDomTime,
 			wantRawMsgURLMap: map[string][]string{
 				fmt.Sprintf("%4d-%2d.txt", timeYearCheck, timeMonthCheck): []string{"https://groups.google.com/forum/message/raw?msg=golang-checkins/8sv65_WCOS4/3Fc-diD_AwAJ"}},
@@ -207,7 +212,7 @@ func TestTopicIDToRawMsgUrlMap(t *testing.T) {
 		{
 			comparisonType: "Pull topic ids for date",
 			org:            "",
-			group:          "golang-checkins",
+			groupName:      "golang-checkins",
 			dom:            exTopicIdDomDate,
 			wantRawMsgURLMap: map[string][]string{
 				"2018-09.txt": []string{"https://groups.google.com/forum/message/raw?msg=golang-checkins/8sv65_WCOS4/3Fc-diD_AwAJ"}},
@@ -216,7 +221,7 @@ func TestTopicIDToRawMsgUrlMap(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.comparisonType, func(t *testing.T) {
-			if gotRawMsgURLMap, gotErr = topicIDToRawMsgUrlMap(test.org, test.group, test.dom); !errors.Is(gotErr, test.wantErr) {
+			if gotRawMsgURLMap, gotErr = topicIDToRawMsgUrlMap(test.org, test.groupName, test.dom); !errors.Is(gotErr, test.wantErr) {
 				t.Errorf("Error response does not match.\n got: %v\nwant: %v", gotErr, test.wantErr)
 			}
 			if !reflect.DeepEqual(gotRawMsgURLMap, test.wantRawMsgURLMap) {
@@ -226,55 +231,192 @@ func TestTopicIDToRawMsgUrlMap(t *testing.T) {
 	}
 }
 
-func TestGetMsgIDsFromDom(t *testing.T) {
-	exMsgIDResponse := `
-	<html>
-	<table>
-	<tr>
-  <td class="subject"><a href="https://en.wikipedia.org/wiki/Lili%CA%BBuokalani/d/msg/queen/Kamakaʻeha/1891">Lydia Liliʻu Loloku Walania Kamakaʻeha</a></td>
-  </tr>
-	</table>
-  </html>
-`
+// TODO verify the temp map is needed
+func TestGetRawMsgURLWorker(t *testing.T) {
 
-	exMsgIdDom, _ := goquery.NewDocumentFromReader(strings.NewReader(exMsgIDResponse))
-
-	var (
-		gotRawMsgUrl string
-		gotErr       error
-	)
 	tests := []struct {
 		comparisonType string
 		org            string
-		topicId        string
-		group          string
-		dom            *goquery.Document
-		wantRawMsgUrl  string
+		groupName      string
+		httpToDom      utils.HttpDomeResponse
+		topicToMsgMap  TopicIDToRawMsgUrlMap
+		wantUrlMap     map[string][]string
 		wantErr        error
 	}{
 		{
-			comparisonType: "Output raw msg url",
-			topicId:        "Kamakaʻeha",
-			group:          "queen",
-			dom:            exMsgIdDom,
-			wantRawMsgUrl:  "https://groups.google.com/forum/message/raw?msg=queen/Kamakaʻeha/1891",
+			comparisonType: "Test worker call and getting url map result.",
+			groupName:      "totalTopicsLess",
+			httpToDom:      utils.FakeHttpDomResponse,
+			topicToMsgMap:  utils.FakeTopicIDToRawMsgUrlMap,
+			wantUrlMap:     map[string][]string{"1893-01.txt": []string{"https://en.wikipedia.org/wiki/Lili%CA%BBuokalani"}},
 			wantErr:        nil,
 		},
 	}
 	for _, test := range tests {
+		topicURLJobs := make(chan string, 1)
+		results := make(chan urlResults, 1)
+
 		t.Run(test.comparisonType, func(t *testing.T) {
-			if gotRawMsgUrl, gotErr = getMsgIDsFromDom(test.org, test.topicId, test.group, test.dom); !errors.Is(gotErr, test.wantErr) {
-				t.Errorf("Error response does not match.\n got: %v\nwant: %v", gotErr, test.wantErr)
+			go getRawMsgURLWorker(test.org, test.groupName, test.httpToDom, test.topicToMsgMap, topicURLJobs, results)
+
+			topicURLJobs <- "rawMsgUrlWorker"
+			close(topicURLJobs)
+
+			gotResult := <-results
+
+			if !errors.Is(gotResult.err, test.wantErr) {
+				t.Errorf("Error response does not match.\n got: %v\nwant: %v", gotResult.err, test.wantErr)
 			}
-			if strings.Compare(gotRawMsgUrl, test.wantRawMsgUrl) != 0 {
-				t.Errorf("DateKey response does not match.\n got: %v\nwant: %v", gotRawMsgUrl, test.wantRawMsgUrl)
+			if !reflect.DeepEqual(gotResult.urlMap, test.wantUrlMap) {
+				t.Errorf("Raw message url response does not match.\n got: %v\nwant: %v", gotResult.urlMap, test.wantUrlMap)
 			}
 		})
 	}
 }
 
-// TODO - fake http call and return value that is the format expected based on following exCorrectResponseBody
-// TODO - test less than 100 and amount that is not divisable by 100
-func TestListRawMsgURLsByMonth(t *testing.T) {}
+func TestListRawMsgURLsByMonth(t *testing.T) {
 
-func TestStoreRawMsgByMonth(t *testing.T) {}
+	rawMsg100 := map[string][]string{"1893-01.txt": []string{"https://en.wikipedia.org/wiki/Lili%CA%BBuokalani"}}
+	for i := 0; i < 100; i++ {
+		rawMsg100["1893-01.txt"] = append(rawMsg100["1893-01.txt"], "https://en.wikipedia.org/wiki/Lili%CA%BBuokalani")
+	}
+
+	var (
+		gotRawMsgURLMap map[string][]string
+		gotErr          error
+	)
+
+	tests := []struct {
+		comparisonType   string
+		org              string
+		groupName        string
+		worker           int
+		httpToDom        utils.HttpDomeResponse
+		topicToMsgMap    TopicIDToRawMsgUrlMap
+		wantRawMsgURLMap map[string][]string
+		wantErr          error
+	}{
+		{
+			comparisonType:   "Pull topic ids for date 100+",
+			org:              "",
+			groupName:        "totalTopics100",
+			worker:           1,
+			httpToDom:        utils.FakeHttpDomResponse,
+			topicToMsgMap:    utils.FakeTopicIDToRawMsgUrlMap,
+			wantRawMsgURLMap: rawMsg100,
+			wantErr:          nil,
+		},
+		{
+			comparisonType:   "Pull topic ids for date under 100",
+			org:              "",
+			groupName:        "totalTopicsLess",
+			worker:           1,
+			httpToDom:        utils.FakeHttpDomResponse,
+			topicToMsgMap:    utils.FakeTopicIDToRawMsgUrlMap,
+			wantRawMsgURLMap: map[string][]string{"1893-01.txt": []string{"https://en.wikipedia.org/wiki/Lili%CA%BBuokalani"}},
+			wantErr:          nil,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.comparisonType, func(t *testing.T) {
+			if gotRawMsgURLMap, gotErr = listRawMsgURLsByMonth(test.org, test.groupName, test.worker, test.httpToDom, test.topicToMsgMap); !errors.Is(gotErr, test.wantErr) {
+				t.Errorf("Error response does not match.\n got: %v\nwant: %v", gotErr, test.wantErr)
+			}
+			if !reflect.DeepEqual(gotRawMsgURLMap, test.wantRawMsgURLMap) {
+				t.Errorf("Result response does not match.\n got: %v\nwant: %v", gotRawMsgURLMap, test.wantRawMsgURLMap)
+			}
+		})
+	}
+}
+
+func TestStoreTextWorker(t *testing.T) {
+
+	ctx := context.Background()
+	storage := utils.NewFakeStorageConnection("googlegroups")
+
+	tests := []struct {
+		comparisonType string
+		org            string
+		groupName      string
+		httpToString   utils.HttpStringResponse
+		chanInput      jobsData
+		wantErr        error
+	}{
+		{
+			comparisonType: "Test worker call and calling storage.",
+			groupName:      "Lili'uokalani",
+			httpToString:   utils.FakeHttpstringResponse,
+			chanInput:      jobsData{topicURLList: []string{"rawMsgUrlWorker"}, fileName: "Lili'uokalani"},
+			wantErr:        nil,
+		},
+		{
+			comparisonType: "Test empty response string.",
+			groupName:      "",
+			httpToString:   utils.FakeHttpstringResponse,
+			chanInput:      jobsData{topicURLList: []string{"", "rawMsgUrlWorker"}, fileName: "Lili'uokalani"},
+			wantErr:        nil,
+		},
+		{
+			comparisonType: "Test empty filename string.",
+			groupName:      "",
+			httpToString:   utils.FakeHttpstringResponse,
+			chanInput:      jobsData{topicURLList: []string{"Lili'uokalani", "rawMsgUrlWorker"}, fileName: ""},
+			wantErr:        emptyFileNameErr,
+		},
+	}
+	for _, test := range tests {
+		rawMsgsUrlJobs := make(chan jobsData, 1)
+		results := make(chan error, 1)
+
+		t.Run(test.comparisonType, func(t *testing.T) {
+			go storeTextWorker(ctx, storage, test.httpToString, rawMsgsUrlJobs, results)
+
+			rawMsgsUrlJobs <- test.chanInput
+			close(rawMsgsUrlJobs)
+
+			gotResult := <-results
+
+			if !errors.Is(gotResult, test.wantErr) {
+				t.Errorf("Error response does not match.\n got: %v\nwant: %v", gotResult, test.wantErr)
+			}
+		})
+	}
+}
+
+func TestStoreRawMsgByMonth(t *testing.T) {
+
+	ctx := context.Background()
+	storage := utils.NewFakeStorageConnection("googlegroups")
+
+	var (
+		gotErr error
+	)
+
+	tests := []struct {
+		comparisonType string
+		org            string
+		groupName      string
+		worker         int
+		httpToString   utils.HttpStringResponse
+		msgResults     map[string][]string
+		wantErr        error
+	}{
+		{
+			comparisonType: "Test harness call to storage worker",
+			org:            "",
+			groupName:      "totalTopicsLess",
+			worker:         1,
+			httpToString:   utils.FakeHttpstringResponse,
+			msgResults:     map[string][]string{"1893-01.txt": []string{"https://en.wikipedia.org/wiki/Lili%CA%BBuokalani", "https://www.biography.com/royalty/liliuokalani"}},
+			wantErr:        nil,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.comparisonType, func(t *testing.T) {
+			if gotErr = storeRawMsgByMonth(ctx, storage, test.worker, test.msgResults, test.httpToString); !errors.Is(gotErr, test.wantErr) {
+				t.Errorf("Error response does not match.\n got: %v\nwant: %v", gotErr, test.wantErr)
+			}
+
+		})
+	}
+}
