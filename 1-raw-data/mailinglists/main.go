@@ -28,6 +28,7 @@ import (
 	"github.com/google/project-OCEAN/1-raw-data/mailinglists/googlegroups"
 	"github.com/google/project-OCEAN/1-raw-data/mailinglists/mailman"
 	"github.com/google/project-OCEAN/1-raw-data/mailinglists/pipermail"
+	"github.com/google/project-OCEAN/1-raw-data/utils"
 )
 
 var (
@@ -55,6 +56,7 @@ func main() {
 	}
 
 	bNames := strings.Split(*bucketNames, " ")
+	httpToDom := utils.DomResponse
 
 	for idx, groupName := range strings.Split(*groupNames, " ") {
 
@@ -66,7 +68,7 @@ func main() {
 
 		switch *mailingList {
 		case "piper":
-			if err := pipermail.GetPipermailData(ctx, &storageConn, groupName); err != nil {
+			if err := pipermail.GetPipermailData(ctx, &storageConn, groupName, httpToDom); err != nil {
 				log.Fatalf("Mailman load failed: %v", err)
 			}
 		case "mailman":
