@@ -199,6 +199,11 @@ func TestCreateBucket(t *testing.T) {
 }
 
 func TestStoreContentInBucket(t *testing.T) {
+	var (
+		gotVerify int64
+		gotErr    error
+	)
+
 	ctx := context.Background()
 	gcs := setupGCS(t)
 
@@ -208,6 +213,7 @@ func TestStoreContentInBucket(t *testing.T) {
 		filename       string
 		content        string
 		source         string
+		wantResponse bool
 		wantErr        error
 	}{
 		{
@@ -216,6 +222,7 @@ func TestStoreContentInBucket(t *testing.T) {
 			filename:       "laduke.gz",
 			content:        "https://en.wikipedia.org/wiki/Winona_LaDuke",
 			source:         "url",
+			wantResponse: true,
 			wantErr:        nil,
 		},
 		{
@@ -224,6 +231,7 @@ func TestStoreContentInBucket(t *testing.T) {
 			filename:       "",
 			content:        "https://en.wikipedia.org/wiki/Winona_LaDuke",
 			source:         "url",
+			wantResponse: false,
 			wantErr:        emptyFileNameErr,
 		},
 		{
@@ -232,6 +240,7 @@ func TestStoreContentInBucket(t *testing.T) {
 			filename:       "laduke.gz",
 			content:        "",
 			source:         "url",
+			wantResponse: false,
 			wantErr:        httpStrRespErr,
 		},
 		{
@@ -240,16 +249,21 @@ func TestStoreContentInBucket(t *testing.T) {
 			filename:       "laduke.gz",
 			content:        "An American environmentalist, economist, writer who found the Indigenous Women's Network.",
 			source:         "text",
+			wantResponse: true,
 			wantErr:        nil,
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.comparisonType, func(t *testing.T) {
-			if gotErr := gcs.StoreContentInBucket(ctx, test.filename, test.content, test.source); !errors.Is(gotErr, test.wantErr) {
+			if gotVerify, gotErr = gcs.StoreContentInBucket(ctx, test.filename, test.content, test.source); !errors.Is(gotErr, test.wantErr) {
 				if !strings.Contains(gotErr.Error(), test.wantErr.Error()) {
 					t.Errorf("CreateMMFileName response does not match.\n got: %v\nwant: %v", gotErr, test.wantErr)
 				}
 			}
+			if test.wantResponse != (gotVerify > 0) {
+				t.Errorf("Storage Copy did not perform as expected. Returned value got: %v which does not match what was expected.", gotVerify)
+			}
+
 		})
 	}
 

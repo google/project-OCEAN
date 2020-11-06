@@ -43,7 +43,7 @@ var (
 )
 
 type Connection interface {
-	StoreContentInBucket(ctx context.Context, fileName, content, source string) (err error)
+	StoreContentInBucket(ctx context.Context, fileName, content, source string) (testVerifyCopyCalled int64, err error)
 }
 
 type StorageConnection struct {
@@ -104,11 +104,13 @@ func (gcs *StorageConnection) CreateBucket(ctx context.Context) (err error) {
 }
 
 // Store url content in storage.
-func (gcs *StorageConnection) StoreContentInBucket(ctx context.Context, fileName, content, source string) (err error) {
+func (gcs *StorageConnection) StoreContentInBucket(ctx context.Context, fileName, content, source string) (testVerifyCopyCalled int64, err error) {
 	var response *http.Response
+
 	//TODO add more filename validation
 	if fileName == "" {
-		return fmt.Errorf("%w", emptyFileNameErr)
+		err = fmt.Errorf("%w", emptyFileNameErr)
+		return
 	}
 	obj := gcs.bucket.Object(fileName)
 
@@ -119,27 +121,28 @@ func (gcs *StorageConnection) StoreContentInBucket(ctx context.Context, fileName
 		// Get HTTP response
 		response, err = http.Get(content)
 		if err != nil {
-			return fmt.Errorf("%w response error: %v", httpStrRespErr, err)
+			err = fmt.Errorf("%w response error: %v", httpStrRespErr, err)
+			return
 		}
 		defer response.Body.Close()
 
 		if response.StatusCode == http.StatusOK {
 			// Copy file into storage
-			_, err = io.Copy(w, response.Body)
-
-		} else if source == "text" {
-
-			// Copy file into storage
-			_, err = io.Copy(w, strings.NewReader(content))
+			testVerifyCopyCalled, err = io.Copy(w, response.Body)
 		}
+	} else if source == "text" {
+		// Copy file into storage
+		testVerifyCopyCalled, err = io.Copy(w, strings.NewReader(content))
 	}
+
 	if err != nil {
 		// Note not breaking when a file does not load but logging to investigate.
 		log.Printf("Storage did not copy %v to bucket with the error: %v", fileName, err)
 	}
 
 	if err = w.Close(); err != nil {
-		return fmt.Errorf("%w: %v", storageCtxCloseErr, err)
+		err = fmt.Errorf("%w: %v", storageCtxCloseErr, err)
+		return
 	}
 
 	return

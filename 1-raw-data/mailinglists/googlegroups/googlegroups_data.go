@@ -161,7 +161,9 @@ func getMsgIDsFromDom(org, topicId, groupName string, dom *goquery.Document) (ra
 type TopicIDToRawMsgUrlMap func(string, string, *goquery.Document) (rawMsgUrlMap map[string][]string, err error)
 
 // Parse topic ids from dom, get message ids and create raw message url map by year-month filename
-func topicIDToRawMsgUrlMap(org, groupName string, dom *goquery.Document) (rawMsgUrlMap map[string][]string, err error) {
+func topicIDToRawMsgUrlMap(org, groupName string, topicDom *goquery.Document) (rawMsgUrlMap map[string][]string, err error) {
+
+	var msgDom *goquery.Document
 
 	rawMsgUrlMap = make(map[string][]string)
 
@@ -172,7 +174,7 @@ func topicIDToRawMsgUrlMap(org, groupName string, dom *goquery.Document) (rawMsg
 
 	var fileName, dateToParse, topicID, msgURL, rawMsgURL string
 
-	dom.Find("tr").Each(func(i int, row *goquery.Selection) {
+	topicDom.Find("tr").Each(func(i int, row *goquery.Selection) {
 		row.Find("td").Each(func(i int, cell *goquery.Selection) {
 			topicIdURL, ok := cell.Find("a").Attr("href")
 			if ok {
@@ -199,12 +201,12 @@ func topicIDToRawMsgUrlMap(org, groupName string, dom *goquery.Document) (rawMsg
 
 				msgURL = fmt.Sprintf("https://groups.google.com/forum/?_escaped_fragment_=topic/%s/%s", groupName, topicID)
 
-				if dom, err = utils.DomResponse(msgURL); err != nil {
+				if msgDom, err = utils.DomResponse(msgURL); err != nil {
 					return
 				}
 
 				// Get the message ids from the links associated with each topic id
-				rawMsgURL = getMsgIDsFromDom(org, topicID, groupName, dom)
+				rawMsgURL = getMsgIDsFromDom(org, topicID, groupName, msgDom)
 				// Store the urls for the raw message content into a map grouped by year-month
 				rawMsgUrlMap[fileName] = append(rawMsgUrlMap[fileName], rawMsgURL)
 			}
@@ -237,10 +239,10 @@ func getRawMsgURLWorker(org, groupName string, httpToDom utils.HttpDomResponse, 
 			return
 		}
 
-		//Combine all raw msg urls results if ther are more than one topicURL page reviewed
+		//Combine all raw msg urls results if there are more than one topicURL page reviewed
 		for fileName, rawMsgURL := range tmpResults {
 			topicResults[fileName] = append(topicResults[fileName], rawMsgURL...)
-			log.Printf("Filename results grabbed %s.", fileName)
+			log.Printf("%d filename results grabbed for file: %s.", len(rawMsgURL), fileName)
 		}
 
 	}
@@ -288,6 +290,7 @@ func listRawMsgURLsByMonth(org, groupName string, worker int, httpToDom utils.Ht
 	}
 	if totalMessages%100 > 0 {
 		topicURLJobs <- fmt.Sprintf("%s[%d-%d]", urlTopicList, totalMessages-totalMessages%100, totalMessages)
+		//pageIndex = pageIndex + totalMessages%100
 	}
 	close(topicURLJobs)
 
@@ -301,6 +304,7 @@ func listRawMsgURLsByMonth(org, groupName string, worker int, httpToDom utils.Ht
 		for fileName, rawMsgURL := range rawMsgURLListOutput.urlMap {
 			rawMsgUrlMap[fileName] = append(rawMsgUrlMap[fileName], rawMsgURL...)
 			countMsgs = countMsgs + len(rawMsgURL)
+			log.Printf("Final: %d filename results grabbed for file: %s.", len(rawMsgURL), fileName)
 		}
 	}
 
@@ -336,7 +340,7 @@ func storeTextWorker(ctx context.Context, storage gcs.Connection, httpToString u
 			}
 			textStore = textStore + "/n" + response
 		}
-		if err = storage.StoreContentInBucket(ctx, urls.fileName, textStore, "text"); err != nil {
+		if _, err = storage.StoreContentInBucket(ctx, urls.fileName, textStore, "text"); err != nil {
 			results <- fmt.Errorf("%w: %v", storageErr, err)
 			return
 		}

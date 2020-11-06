@@ -58,7 +58,7 @@ func GetPipermailData(ctx context.Context, storage gcs.Connection, groupName str
 			if check[len] == "gz" {
 				if strings.Split(filename, ":")[0] != "https" {
 					url := fmt.Sprintf("%v%v", mailingListURL, filename)
-					if err = storage.StoreContentInBucket(ctx, filename, url, "url"); err != nil {
+					if _, err = storage.StoreContentInBucket(ctx, filename, url, "url"); err != nil {
 						// Each func interface doesn't allow passing errors?
 						storeErr = fmt.Errorf("%w: %v", storageErr, err)
 					}
