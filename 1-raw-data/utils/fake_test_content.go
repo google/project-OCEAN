@@ -23,12 +23,14 @@ import (
 	"github.com/google/project-OCEAN/1-raw-data/gcs"
 )
 
+// Simulate StorageConnection struct for tests
 type FakeStorageConnection struct {
 	gcs.StorageConnection
 	ProjectID  string
 	BucketName string
 }
 
+// Create new fake StorageConnection object for tests based on the test being run
 func NewFakeStorageConnection(testPackage string) *FakeStorageConnection {
 	if testPackage == "pipermail" {
 		return &FakeStorageConnection{ProjectID: "Pine-Leaf", BucketName: "Bíawacheeitchish"}
@@ -51,11 +53,13 @@ func (gcs *FakeStorageConnection) StoreContentInBucket(ctx context.Context, file
 	return
 }
 
+// Mock creating HTTP response body and return as a string for tests
 func FakeHttpstringResponse(url string) (responseString string, err error) {
 	responseString = url
 	return
 }
 
+// Mock creating HTTP response body and return as a dom for tests
 func FakeHttpDomResponse(url string) (dom *goquery.Document, err error) {
 	var exDomResponse string
 
@@ -134,6 +138,7 @@ func FakeHttpDomResponse(url string) (dom *goquery.Document, err error) {
 	return goquery.NewDocumentFromReader(strings.NewReader(exDomResponse))
 }
 
+// Mock creating raw message url map from topic ids for tests on Google Groups mailing list load
 func FakeTopicIDToRawMsgUrlMap(org, groupName string, dom *goquery.Document) (rawMsgUrlMap map[string][]string, err error) {
 	switch groupName {
 	case "totalTopicsLess":

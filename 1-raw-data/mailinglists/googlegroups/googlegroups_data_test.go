@@ -238,7 +238,7 @@ func TestGetRawMsgURLWorker(t *testing.T) {
 		comparisonType string
 		org            string
 		groupName      string
-		httpToDom      utils.HttpDomeResponse
+		httpToDom      utils.HttpDomResponse
 		topicToMsgMap  TopicIDToRawMsgUrlMap
 		wantUrlMap     map[string][]string
 		wantErr        error
@@ -291,7 +291,7 @@ func TestListRawMsgURLsByMonth(t *testing.T) {
 		org              string
 		groupName        string
 		worker           int
-		httpToDom        utils.HttpDomeResponse
+		httpToDom        utils.HttpDomResponse
 		topicToMsgMap    TopicIDToRawMsgUrlMap
 		wantRawMsgURLMap map[string][]string
 		wantErr          error

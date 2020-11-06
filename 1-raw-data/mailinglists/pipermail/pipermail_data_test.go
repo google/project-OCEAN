@@ -31,7 +31,7 @@ func TestGetPipermailData(t *testing.T) {
 		comparisonType string
 		gcs            *utils.FakeStorageConnection
 		groupName      string
-		httpToDom      utils.HttpDomeResponse
+		httpToDom      utils.HttpDomResponse
 		wantErr        error
 	}{
 		{

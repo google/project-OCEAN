@@ -38,7 +38,7 @@ var (
 )
 
 // Get, parse and store Pipermail data in GCS.
-func GetPipermailData(ctx context.Context, storage gcs.Connection, groupName string, httpToDom utils.HttpDomeResponse) (storeErr error) {
+func GetPipermailData(ctx context.Context, storage gcs.Connection, groupName string, httpToDom utils.HttpDomResponse) (storeErr error) {
 	mailingListURL := fmt.Sprintf("https://mail.python.org/pipermail/%s/", groupName)
 
 	var (

@@ -27,6 +27,7 @@ var (
 	httpDomRespErr = fmt.Errorf("http dom")
 )
 
+// Func pointer to create HTTP response body and return as a string
 type HttpStringResponse func(string) (string, error)
 
 // Create HTTP response body and return as a string
@@ -59,7 +60,8 @@ func StringResponse(url string) (responseString string, err error) {
 	return
 }
 
-type HttpDomeResponse func(string) (*goquery.Document, error)
+// Func pointer to create HTTP response body and return as a dom object
+type HttpDomResponse func(string) (*goquery.Document, error)
 
 // Create HTTP response body and return as a dom object
 func DomResponse(url string) (dom *goquery.Document, err error) {

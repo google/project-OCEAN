@@ -214,7 +214,7 @@ func topicIDToRawMsgUrlMap(org, groupName string, dom *goquery.Document) (rawMsg
 }
 
 // Worker converting list of topic id urls to dom objects and converting topic ids into the raw message urls
-func getRawMsgURLWorker(org, groupName string, httpToDom utils.HttpDomeResponse, topictoMsgMap TopicIDToRawMsgUrlMap, topicURLJobs <-chan string, results chan<- urlResults) {
+func getRawMsgURLWorker(org, groupName string, httpToDom utils.HttpDomResponse, topictoMsgMap TopicIDToRawMsgUrlMap, topicURLJobs <-chan string, results chan<- urlResults) {
 	var (
 		topicDom                 *goquery.Document
 		topicResults, tmpResults map[string][]string
@@ -249,7 +249,7 @@ func getRawMsgURLWorker(org, groupName string, httpToDom utils.HttpDomeResponse,
 }
 
 // Goroutine setup to get/consolidate list of raw message urls by year-month text filename for pages with lists of topic urls.
-func listRawMsgURLsByMonth(org, groupName string, worker int, httpToDom utils.HttpDomeResponse, topicToMsgMap TopicIDToRawMsgUrlMap) (rawMsgUrlMap map[string][]string, err error) {
+func listRawMsgURLsByMonth(org, groupName string, worker int, httpToDom utils.HttpDomResponse, topicToMsgMap TopicIDToRawMsgUrlMap) (rawMsgUrlMap map[string][]string, err error) {
 	var (
 		urlTopicList                        string
 		pageIndex, countMsgs, totalMessages int
@@ -308,7 +308,8 @@ func listRawMsgURLsByMonth(org, groupName string, worker int, httpToDom utils.Ht
 		log.Printf("All topics captured: total topics captured are %d.", totalMessages)
 
 	} else {
-		err = fmt.Errorf("%w failed to capture all: total topics are %d but only %d were captured.", topicCaptureErr, totalMessages, countMsgs)
+		log.Printf("Failed to capture all: total topics are %d but only %d were captured.", totalMessages, countMsgs)
+		//err = fmt.Errorf("%w failed to capture all: total topics are %d but only %d were captured.", topicCaptureErr, totalMessages, countMsgs)
 		return
 	}
 	return
@@ -388,7 +389,7 @@ func GetGoogleGroupsData(ctx context.Context, org, groupName string, storage gcs
 
 	var (
 		messageURLResults map[string][]string
-		httpToDom         utils.HttpDomeResponse
+		httpToDom         utils.HttpDomResponse
 		httpToString      utils.HttpStringResponse
 		topicToMsgMap     TopicIDToRawMsgUrlMap
 	)
