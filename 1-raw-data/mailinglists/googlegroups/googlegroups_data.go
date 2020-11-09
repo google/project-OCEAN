@@ -269,7 +269,7 @@ func listRawMsgURLsByMonth(org, groupName string, worker int, httpToDom utils.Ht
 	}
 
 	totalMessages = getTotalTopics(dom)
-	if totalMessages%100 == 0 {
+	if totalMessages > 100 {
 		worker = int(math.Min(float64(worker), float64(totalMessages/100)))
 	} else {
 		worker = int(math.Min(float64(worker), float64(totalMessages%100)))

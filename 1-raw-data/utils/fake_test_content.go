@@ -41,14 +41,16 @@ func NewFakeStorageConnection(testPackage string) *FakeStorageConnection {
 }
 
 // Simulate StoreGCS
-func (gcs *FakeStorageConnection) StoreContentInBucket(ctx context.Context, fileName, content, source string) (storageErr error) {
+func (gcs *FakeStorageConnection) StoreContentInBucket(ctx context.Context, fileName, content, source string) (testVerifyCopyCalled int64, err error) {
 
 	if strings.Contains(content, "Leaf") {
 		return
 	} else if strings.Contains(content, "Susan") {
-		return fmt.Errorf("%w", storageErr)
+		err = fmt.Errorf("%w", err)
+		return
 	} else if strings.Contains(content, "missing") {
-		return fmt.Errorf("Pipermail storage error")
+		err = fmt.Errorf("Pipermail storage error")
+		return
 	}
 	return
 }
