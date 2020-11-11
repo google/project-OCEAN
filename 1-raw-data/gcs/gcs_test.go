@@ -213,7 +213,7 @@ func TestStoreContentInBucket(t *testing.T) {
 		filename       string
 		content        string
 		source         string
-		wantResponse bool
+		wantResponse   bool
 		wantErr        error
 	}{
 		{
@@ -222,7 +222,7 @@ func TestStoreContentInBucket(t *testing.T) {
 			filename:       "laduke.gz",
 			content:        "https://en.wikipedia.org/wiki/Winona_LaDuke",
 			source:         "url",
-			wantResponse: true,
+			wantResponse:   true,
 			wantErr:        nil,
 		},
 		{
@@ -231,7 +231,7 @@ func TestStoreContentInBucket(t *testing.T) {
 			filename:       "",
 			content:        "https://en.wikipedia.org/wiki/Winona_LaDuke",
 			source:         "url",
-			wantResponse: false,
+			wantResponse:   false,
 			wantErr:        emptyFileNameErr,
 		},
 		{
@@ -240,7 +240,7 @@ func TestStoreContentInBucket(t *testing.T) {
 			filename:       "laduke.gz",
 			content:        "",
 			source:         "url",
-			wantResponse: false,
+			wantResponse:   false,
 			wantErr:        httpStrRespErr,
 		},
 		{
@@ -249,7 +249,7 @@ func TestStoreContentInBucket(t *testing.T) {
 			filename:       "laduke.gz",
 			content:        "An American environmentalist, economist, writer who found the Indigenous Women's Network.",
 			source:         "text",
-			wantResponse: true,
+			wantResponse:   true,
 			wantErr:        nil,
 		},
 	}

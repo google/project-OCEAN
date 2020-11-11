@@ -24,6 +24,7 @@ package mailman
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"strings"
@@ -33,8 +34,8 @@ import (
 )
 
 var (
-	dateTimeParseErr = fmt.Errorf("string to DateTime")
-	storageErr       = fmt.Errorf("Storage failed")
+	dateTimeParseErr = errors.New("string to DateTime")
+	storageErr       = errors.New("Storage failed")
 )
 
 // Check dates used in the Mailman filename have value, are not the same and that start before end.

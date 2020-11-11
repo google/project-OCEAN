@@ -54,6 +54,7 @@ package googlegroups
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"math"
@@ -84,12 +85,12 @@ type jobsData struct {
 }
 
 var (
-	dateTimeParseErr = fmt.Errorf("string to DateTime")
-	fileNameErr      = fmt.Errorf("defining filename")
-	emptyFileNameErr = fmt.Errorf("empty filename")
-	rawMsgWorkerErr  = fmt.Errorf("raw message worker")
-	topicCaptureErr  = fmt.Errorf("topic capture")
-	storageErr       = fmt.Errorf("Storage failed")
+	dateTimeParseErr = errors.New("string to DateTime")
+	fileNameErr      = errors.New("defining filename")
+	emptyFileNameErr = errors.New("empty filename")
+	rawMsgWorkerErr  = errors.New("raw message worker")
+	topicCaptureErr  = errors.New("topic capture")
+	storageErr       = errors.New("Storage failed")
 )
 
 // Create month year filename for topic list map
@@ -154,6 +155,8 @@ func getMsgIDsFromDom(org, topicId, groupName string, dom *goquery.Document) (ra
 	if regTopicURL.MatchString(msgUrl) {
 		msgId = path.Base(msgUrl)
 		rawMsgUrl = fmt.Sprintf("https://groups.google.com%s/forum/message/raw?msg=%s/%s/%s", org, groupName, topicId, msgId)
+	} else {
+		log.Printf("************** NO MSG ID FOUND in topicId: %s ************** ", topicId)
 	}
 	return
 }
@@ -182,8 +185,11 @@ func topicIDToRawMsgUrlMap(org, groupName string, topicDom *goquery.Document) (r
 				if regTopicURL.MatchString(topicIdURL) {
 					// Capture topic id
 					topicID = path.Base(topicIdURL)
+				} else {
+					log.Printf("************** topicIDToRawMsgUrlMap NO Topic ID FOUND in topicIdURL: %s ************** ", topicIdURL)
 				}
 			}
+
 			// Capture date topic posted and convert to year-month text filename for grouping
 			dateClass, _ := cell.Attr("class")
 			if dateClass == "lastPostDate" {
@@ -269,14 +275,22 @@ func listRawMsgURLsByMonth(org, groupName string, worker int, httpToDom utils.Ht
 	}
 
 	totalMessages = getTotalTopics(dom)
-	if totalMessages > 100 {
-		worker = int(math.Min(float64(worker), float64(totalMessages/100)))
+
+	// Lower worker # if its greater than totalMessages / 100 or % 100
+	if totalMessages >= 100 {
+		worker = int(math.Min(float64(worker), float64(totalMessages/100+1)))
 	} else {
 		worker = int(math.Min(float64(worker), float64(totalMessages%100)))
 	}
+	if worker == 0 {
+		worker = 1
+	}
 
-	topicURLJobs := make(chan string, totalMessages/100+1)
-	results := make(chan urlResults, totalMessages/100+1)
+	//topicURLJobs := make(chan string)
+	//results := make(chan urlResults)
+	topicURLJobs := make(chan string, int(totalMessages/100)+1)
+	results := make(chan urlResults, int(totalMessages/100)+1)
+
 	defer close(results)
 
 	for i := 0; i < worker; i++ {
@@ -284,18 +298,19 @@ func listRawMsgURLsByMonth(org, groupName string, worker int, httpToDom utils.Ht
 	}
 
 	// Loop over each page to pull all topic urls and setup jobs
-	for i := 0; i < totalMessages/100; i++ {
+	for i := 0; i < int(totalMessages/100); i++ {
 		topicURLJobs <- fmt.Sprintf("%s[%d-%d]", urlTopicList, pageIndex+1, pageIndex+100)
 		pageIndex = pageIndex + 100
 	}
 	if totalMessages%100 > 0 {
-		topicURLJobs <- fmt.Sprintf("%s[%d-%d]", urlTopicList, totalMessages-totalMessages%100, totalMessages)
+		topicURLJobs <- fmt.Sprintf("%s[%d-%d]", urlTopicList, totalMessages-totalMessages%100+1, totalMessages)
 		//pageIndex = pageIndex + totalMessages%100
 	}
 	close(topicURLJobs)
 
 	// Combine all raw msg urls under the same year month filename
 	for i := 0; i < worker; i++ {
+		//for i := 0; i < int(totalMessages/100); i++ {
 		rawMsgURLListOutput := <-results
 		if rawMsgURLListOutput.err != nil {
 			err = rawMsgURLListOutput.err
@@ -304,7 +319,7 @@ func listRawMsgURLsByMonth(org, groupName string, worker int, httpToDom utils.Ht
 		for fileName, rawMsgURL := range rawMsgURLListOutput.urlMap {
 			rawMsgUrlMap[fileName] = append(rawMsgUrlMap[fileName], rawMsgURL...)
 			countMsgs = countMsgs + len(rawMsgURL)
-			log.Printf("Final: %d filename results grabbed for file: %s.", len(rawMsgURL), fileName)
+			log.Printf("Worker %d result in final: %d filename results grabbed for file: %s.", i, len(rawMsgURL), fileName)
 		}
 	}
 

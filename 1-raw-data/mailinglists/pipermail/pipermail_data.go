@@ -25,6 +25,7 @@ package pipermail
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -34,7 +35,7 @@ import (
 )
 
 var (
-	storageErr = fmt.Errorf("Storage failed")
+	storageErr = errors.New("Storage failed")
 )
 
 // Get, parse and store Pipermail data in GCS.
