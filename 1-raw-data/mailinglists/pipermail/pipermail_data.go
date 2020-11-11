@@ -25,44 +25,49 @@ package pipermail
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"net/http"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/google/project-OCEAN/1-raw-data/gcs"
+	"github.com/google/project-OCEAN/1-raw-data/utils"
+)
+
+var (
+	storageErr = errors.New("Storage failed")
 )
 
 // Get, parse and store Pipermail data in GCS.
-func GetPipermailData(ctx context.Context, storage gcs.Connection, groupName string) (storageErr error) {
+func GetPipermailData(ctx context.Context, storage gcs.Connection, groupName string, httpToDom utils.HttpDomResponse) (storeErr error) {
 	mailingListURL := fmt.Sprintf("https://mail.python.org/pipermail/%s/", groupName)
 
-	response, err := http.Get(mailingListURL)
-	if err != nil {
-		return fmt.Errorf("HTTP response returned an error: %w", err)
-	}
-	defer response.Body.Close()
+	var (
+		dom *goquery.Document
+		err error
+	)
 
-	if response.StatusCode == http.StatusOK {
-		dom, _ := goquery.NewDocumentFromReader(response.Body)
-		dom.Find("tr").Find("td").Find("a").Each(func(i int, s *goquery.Selection) {
-			filename, ok := s.Attr("href")
-			if ok {
-				check := strings.Split(filename, ".")
-				len := len(check) - 1
-				if check[len] == "gz" {
-					if strings.Split(filename, ":")[0] != "https" {
-						url := fmt.Sprintf("%v%v", mailingListURL, filename)
-						if err := storage.StoreURLContentInBucket(ctx, filename, url); err != nil {
-							// Each func interface doesn't allow passing errors?
-							storageErr = fmt.Errorf("GCS storage failed: %w", err)
-						}
+	if dom, err = httpToDom(mailingListURL); err != nil {
+		return fmt.Errorf("HTTP dom error: %v", err)
+	}
+
+	dom.Find("tr").Find("td").Find("a").Each(func(i int, s *goquery.Selection) {
+		filename, ok := s.Attr("href")
+		if ok {
+			check := strings.Split(filename, ".")
+			len := len(check) - 1
+			if check[len] == "gz" {
+				if strings.Split(filename, ":")[0] != "https" {
+					url := fmt.Sprintf("%v%v", mailingListURL, filename)
+					if _, err = storage.StoreContentInBucket(ctx, filename, url, "url"); err != nil {
+						// Each func interface doesn't allow passing errors?
+						storeErr = fmt.Errorf("%w: %v", storageErr, err)
 					}
 				}
 			}
-		})
-	}
-	return
+		}
+	})
+	return storeErr
 }
 
 // TODO create func to create map of what is in bucket and then compare to what is pulled from site so only pull new files

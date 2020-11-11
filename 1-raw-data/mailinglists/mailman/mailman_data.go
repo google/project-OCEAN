@@ -24,6 +24,7 @@ package mailman
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"strings"
@@ -32,22 +33,25 @@ import (
 	"github.com/google/project-OCEAN/1-raw-data/gcs"
 )
 
+var (
+	dateTimeParseErr = errors.New("string to DateTime")
+	storageErr       = errors.New("Storage failed")
+)
+
 // Check dates used in the Mailman filename have value, are not the same and that start before end.
 func setDates(startDate, endDate string) (startDateTime, endDateTime time.Time, err error) {
 	if startDate == "" {
 		startDate = time.Now().Format("2006-01-02")
 	}
 	if startDateTime, err = time.Parse("2006-01-02", startDate); err != nil {
-		startDateTime, endDateTime = time.Time{}, time.Time{}
-		err = fmt.Errorf("Start date string conversion to DateTime threw an error: %w", err)
+		err = fmt.Errorf("%w start date error: %v", dateTimeParseErr, err)
 		return
 	}
 	if endDate == "" || endDate > time.Now().Format("2006-01-02") {
 		endDate = time.Now().Format("2006-01-02")
 	}
 	if endDateTime, err = time.Parse("2006-01-02", endDate); err != nil {
-		startDateTime, endDateTime = time.Time{}, time.Time{}
-		err = fmt.Errorf("End date string conversion to DateTime threw an error: %w", err)
+		err = fmt.Errorf("%w end date error: %v", dateTimeParseErr, err)
 		return
 	}
 	if startDate == endDate {
@@ -55,7 +59,7 @@ func setDates(startDate, endDate string) (startDateTime, endDateTime time.Time, 
 		startDate = startDateTime.Format("2006-01-02")
 	}
 	if startDateTime.After(endDateTime) {
-		err = fmt.Errorf("Start date %v was past end date %v. Update input with different start date.", startDate, endDate)
+		err = fmt.Errorf("%w start date %v was past end date %v. Update input with different start date.", dateTimeParseErr, startDate, endDate)
 	}
 	return
 }
@@ -63,14 +67,12 @@ func setDates(startDate, endDate string) (startDateTime, endDateTime time.Time, 
 // Create filename to save Mailman data.
 func createMailmanFilename(currentStart string) (fileName string) {
 	yearMonth := strings.Split(currentStart, "-")[0:2]
-	fileName = strings.Join(yearMonth, "-") + ".mbox.gz"
-	return
+	return strings.Join(yearMonth, "-") + ".mbox.gz"
 }
 
 // Create URL needed for Mailman with specific dates and filename for output. Forces start to first of month and end to end of month unless current date.
 func createMailmanURL(mailingListURL, filename, startDate, endDate string) (url string) {
-	url = fmt.Sprintf("%vexport/python-dev@python.org-%v?start=%v&end=%v", mailingListURL, filename, startDate, endDate)
-	return
+	return fmt.Sprintf("%vexport/python-dev@python.org-%v?start=%v&end=%v", mailingListURL, filename, startDate, endDate)
 }
 
 // Break dates out to span only a month, start must be 1st and end must be 1st of the following month unless today
@@ -106,16 +108,15 @@ func GetMailmanData(ctx context.Context, storage gcs.Connection, groupName, star
 		startDateTime, endDateTime = breakDateByMonth(startDateTime, endDateTime)
 		filename = createMailmanFilename(startDateTime.String())
 		url = createMailmanURL(mailingListURL, filename, startDateTime.Format("2006-01-02"), endDateTime.Format("2006-01-02"))
-		if err = storage.StoreURLContentInBucket(ctx, filename, url); err != nil {
-			err = fmt.Errorf("Storage failed: %w", err)
-			return
+		if _, err = storage.StoreContentInBucket(ctx, filename, url, "url"); err != nil {
+			return fmt.Errorf("%w: %v", storageErr, err)
 		}
 		startDateTime = startDateTime.AddDate(0, 1, 0)
 		endDateTime = endDateTime.AddDate(0, 1, 0)
 	}
 	if endDateTime.Format("2006-01-02") != orgEndDateTime.Format("2006-01-02") {
 		log.Printf("Did not copy all dates. Stopped at %v vs. orginal date: %v", endDateTime.Format("2006-01-02"), orgEndDateTime.Format("2006-01-02"))
-		return fmt.Errorf("Storage failed to get all the dates, stopped at: %v when expected to stop at: %v", endDateTime.Format("2006-01-02"), orgEndDateTime.Format("2006-01-02"))
+		return fmt.Errorf("%w to get all the dates, stopped at: %v when expected to stop at: %v", storageErr, endDateTime.Format("2006-01-02"), orgEndDateTime.Format("2006-01-02"))
 	}
 	return
 }

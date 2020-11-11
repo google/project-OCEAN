@@ -18,32 +18,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/google/project-OCEAN/1-raw-data/gcs"
+	"github.com/google/project-OCEAN/1-raw-data/utils"
 )
-
-type fakeStorageConnection struct {
-	gcs.StorageConnection
-	ProjectID  string
-	BucketName string
-}
-
-func newFakeStorageConnection() *fakeStorageConnection {
-	return &fakeStorageConnection{ProjectID: "Susan-Picotte", BucketName: "Physician"}
-}
-
-// Simulate gcs StoreInBucket
-func (gcs *fakeStorageConnection) StoreURLContentInBucket(ctx context.Context, fileName, url string) (storageErr error) {
-	if strings.Contains(url, "Susan") {
-		err := os.ErrNotExist
-		storageErr = fmt.Errorf("%v", err)
-	}
-	return
-}
 
 func TestSetDates(t *testing.T) {
 	// Test passing in empty start, empty date, same date, start older than end, not a string
@@ -86,9 +66,8 @@ func TestSetDates(t *testing.T) {
 			wantEnd:        "1915-09-18",
 			err:            nil,
 		},
-		// Test end date after today's date if start of month
 		{
-			comparisonType: "End date after today",
+			comparisonType: "End date after today if start of month",
 			start:          "2020-09-01",
 			end:            "3020-09-01",
 			wantStart:      "2020-09-01",
@@ -102,6 +81,30 @@ func TestSetDates(t *testing.T) {
 			wantStart:      "2020-09-01",
 			wantEnd:        today,
 			err:            nil,
+		},
+		{
+			comparisonType: "Parse error on start date",
+			start:          "06-17",
+			end:            "1915-09-18",
+			wantStart:      "0001-01-01",
+			wantEnd:        "0001-01-01",
+			err:            dateTimeParseErr,
+		},
+		{
+			comparisonType: "Parse error on end date",
+			start:          "1865-06-17",
+			end:            "09-18",
+			wantStart:      "1865-06-17",
+			wantEnd:        "0001-01-01",
+			err:            dateTimeParseErr,
+		},
+		{
+			comparisonType: "Parse error start date is after end date",
+			start:          "1965-06-17",
+			end:            "1865-09-18",
+			wantStart:      "1965-06-17",
+			wantEnd:        "1865-09-18",
+			err:            dateTimeParseErr,
 		},
 	}
 	for _, test := range tests {
@@ -234,11 +237,10 @@ func TestBreakDateByMonth(t *testing.T) {
 
 func TestGetMailmanData(t *testing.T) {
 	ctx := context.Background()
-	storage := newFakeStorageConnection()
+	storage := utils.NewFakeStorageConnection("mailman")
 
 	tests := []struct {
 		comparisonType string
-		storage        *fakeStorageConnection
 		groupName      string
 		startDate      string
 		endDate        string
@@ -246,15 +248,13 @@ func TestGetMailmanData(t *testing.T) {
 	}{
 		{
 			comparisonType: "Test StoreInBucket is called and for one month timeframe",
-			storage:        storage,
 			groupName:      "Susan_La_Flesche_Picotte",
 			startDate:      "1915-09-01",
 			endDate:        "1915-09-30",
-			wantErr:        os.ErrNotExist,
+			wantErr:        storageErr,
 		},
 		{
 			comparisonType: "SetDate error StartDate wrong format",
-			storage:        storage,
 			groupName:      "Susan_La_Flesche_Picotte",
 			startDate:      "06-17",
 			endDate:        "1915-09-30",
@@ -262,7 +262,6 @@ func TestGetMailmanData(t *testing.T) {
 		},
 		{
 			comparisonType: "SetDate error EndDate wrong format",
-			storage:        storage,
 			groupName:      "Susan_La_Flesche_Picotte",
 			startDate:      "1915-09-01",
 			endDate:        "06-17",
@@ -271,7 +270,7 @@ func TestGetMailmanData(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.comparisonType, func(t *testing.T) {
-			if gotErr := GetMailmanData(ctx, test.storage, test.groupName, test.startDate, test.endDate); !errors.Is(gotErr, test.wantErr) {
+			if gotErr := GetMailmanData(ctx, storage, test.groupName, test.startDate, test.endDate); !errors.Is(gotErr, test.wantErr) {
 				if !strings.Contains(gotErr.Error(), test.wantErr.Error()) {
 					t.Errorf("Error doesn't match.\n got: %v\nwant it to contain: %v", gotErr, test.wantErr)
 				}
