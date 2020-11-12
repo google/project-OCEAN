@@ -187,6 +187,7 @@ func TestTopicIDToRawMsgUrlMap(t *testing.T) {
 
 	exTopicIdDomTime, _ := utils.FakeHttpDomResponse("topicIDToRawMsgUrlMapTime")
 	exTopicIdDomDate, _ := utils.FakeHttpDomResponse("topicIDToRawMsgUrlMapDate")
+	exAbuseHiddenMsg, _ := utils.FakeHttpDomResponse("abuseHiddenMsg")
 
 	var (
 		gotRawMsgURLMap map[string][]string
@@ -216,6 +217,15 @@ func TestTopicIDToRawMsgUrlMap(t *testing.T) {
 			dom:            exTopicIdDomDate,
 			wantRawMsgURLMap: map[string][]string{
 				"2018-09.txt": []string{"https://groups.google.com/forum/message/raw?msg=golang-checkins/8sv65_WCOS4/3Fc-diD_AwAJ"}},
+			wantErr: nil,
+		},
+		{
+			comparisonType: "Capture abuse flagged messages that were hidden.",
+			org:            "",
+			groupName:      "golang-checkins",
+			dom:            exAbuseHiddenMsg,
+			wantRawMsgURLMap: map[string][]string{
+				"abuse.txt": []string{"https://groups.google.com/forum/message/raw?msg=golang-checkins/8sv65_WCOS4/3Fc-diD_AwAJ"}},
 			wantErr: nil,
 		},
 	}
