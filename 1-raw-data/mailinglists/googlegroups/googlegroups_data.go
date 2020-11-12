@@ -145,6 +145,7 @@ func getTotalTopics(dom *goquery.Document) (totalTopics int) {
 	return
 }
 
+
 // Get message ids from topic pages and create list of raw msg urls by month
 func getMsgIDsFromDom(org, topicId, groupName string, dom *goquery.Document) (rawMsgUrl string) {
 	regTopicURL := regexp.MustCompile(fmt.Sprintf("/d/msg/%s", groupName))
@@ -178,15 +179,27 @@ func topicIDToRawMsgUrlMap(org, groupName string, topicDom *goquery.Document) (r
 	var fileName, dateToParse, topicID, msgURL, rawMsgURL string
 
 	topicDom.Find("tr").Each(func(i int, row *goquery.Selection) {
+		fileName = ""
 		row.Find("td").Each(func(i int, cell *goquery.Selection) {
 			topicIdURL, ok := cell.Find("a").Attr("href")
+			abuse, _ := cell.Find("a").Attr("title")
 			if ok {
 				// Get topic id
 				if regTopicURL.MatchString(topicIdURL) {
 					// Capture topic id
 					topicID = path.Base(topicIdURL)
-				} else {
-					log.Printf("************** topicIDToRawMsgUrlMap NO Topic ID FOUND in topicIdURL: %s ************** ", topicIdURL)
+					msgURL = fmt.Sprintf("https://groups.google.com/forum/?_escaped_fragment_=topic/%s/%s", groupName, topicID)
+					if msgDom, err = utils.DomResponse(msgURL); err != nil {
+						return
+					}
+					// Get the message ids from the links associated with each topic id
+					rawMsgURL = getMsgIDsFromDom(org, topicID, groupName, msgDom)
+
+					// Capture flagged for abuse messages. They do not have a date class but do create a raw url.
+					// TODO determine if better way to handle
+					if abuse == "This topic has been hidden because it was flagged for abuse." {
+						rawMsgUrlMap["abuse.txt"] = append(rawMsgUrlMap["abuse.txt"], rawMsgURL)
+					}
 				}
 			}
 
@@ -204,15 +217,6 @@ func topicIDToRawMsgUrlMap(org, groupName string, topicDom *goquery.Document) (r
 					err = fmt.Errorf("%w error: %v", fileNameErr, err)
 					return
 				}
-
-				msgURL = fmt.Sprintf("https://groups.google.com/forum/?_escaped_fragment_=topic/%s/%s", groupName, topicID)
-
-				if msgDom, err = utils.DomResponse(msgURL); err != nil {
-					return
-				}
-
-				// Get the message ids from the links associated with each topic id
-				rawMsgURL = getMsgIDsFromDom(org, topicID, groupName, msgDom)
 				// Store the urls for the raw message content into a map grouped by year-month
 				rawMsgUrlMap[fileName] = append(rawMsgUrlMap[fileName], rawMsgURL)
 			}
@@ -262,6 +266,7 @@ func listRawMsgURLsByMonth(org, groupName string, worker int, httpToDom utils.Ht
 		urlTopicList                        string
 		pageIndex, countMsgs, totalMessages int
 		dom                                 *goquery.Document
+		//wg                                  sync.WaitGroup
 	)
 
 	pageIndex, countMsgs = 0, 0
@@ -286,8 +291,6 @@ func listRawMsgURLsByMonth(org, groupName string, worker int, httpToDom utils.Ht
 		worker = 1
 	}
 
-	//topicURLJobs := make(chan string)
-	//results := make(chan urlResults)
 	topicURLJobs := make(chan string, int(totalMessages/100)+1)
 	results := make(chan urlResults, int(totalMessages/100)+1)
 
@@ -304,13 +307,11 @@ func listRawMsgURLsByMonth(org, groupName string, worker int, httpToDom utils.Ht
 	}
 	if totalMessages%100 > 0 {
 		topicURLJobs <- fmt.Sprintf("%s[%d-%d]", urlTopicList, totalMessages-totalMessages%100+1, totalMessages)
-		//pageIndex = pageIndex + totalMessages%100
 	}
 	close(topicURLJobs)
 
 	// Combine all raw msg urls under the same year month filename
 	for i := 0; i < worker; i++ {
-		//for i := 0; i < int(totalMessages/100); i++ {
 		rawMsgURLListOutput := <-results
 		if rawMsgURLListOutput.err != nil {
 			err = rawMsgURLListOutput.err
@@ -327,8 +328,8 @@ func listRawMsgURLsByMonth(org, groupName string, worker int, httpToDom utils.Ht
 		log.Printf("All topics captured: total topics captured are %d.", totalMessages)
 
 	} else {
-		log.Printf("Failed to capture all: total topics are %d but only %d were captured.", totalMessages, countMsgs)
-		//err = fmt.Errorf("%w failed to capture all: total topics are %d but only %d were captured.", topicCaptureErr, totalMessages, countMsgs)
+		//log.Printf("Failed to capture all: total topics are %d but only %d were captured.", totalMessages, countMsgs)
+		err = fmt.Errorf("%w failed to capture all: total topics are %d but only %d were captured.", topicCaptureErr, totalMessages, countMsgs)
 		return
 	}
 	return
@@ -353,7 +354,7 @@ func storeTextWorker(ctx context.Context, storage gcs.Connection, httpToString u
 			} else if response == "" {
 				log.Printf("Response was empty for url: %s", msgURL)
 			}
-			textStore = textStore + "/n" + response
+			textStore = textStore + "/n" + response + "/n" + fmt.Sprintf("original_url: %s", msgURL)
 		}
 		if _, err = storage.StoreContentInBucket(ctx, urls.fileName, textStore, "text"); err != nil {
 			results <- fmt.Errorf("%w: %v", storageErr, err)

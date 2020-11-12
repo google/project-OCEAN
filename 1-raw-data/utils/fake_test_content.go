@@ -108,6 +108,14 @@ func FakeHttpDomResponse(url string) (dom *goquery.Document, err error) {
 			</table>
 			</html>
 	`
+	case "abuseHiddenMsg":
+		exDomResponse = `
+			<html>
+			<table>
+			<tr><td class="subject"><a href="https://groups.google.com/d/topic/golang-checkins/8sv65_WCOS4" title="This topic has been hidden because it was flagged for abuse."><i>This topic has been hidden because it was flagged for abuse</i></a></td></tr>
+			</table>
+			</html>
+	`
 	case "msgIdsFromDom":
 		exDomResponse = `
 				<html>
