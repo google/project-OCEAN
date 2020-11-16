@@ -34,7 +34,7 @@ from google.api_core.exceptions import BadRequest
 
 # TODO parallelize the code to run faster
 
-ALLOWED_FIELDS = set(['from', 'subject', 'date', 'message_id', 'in_reply_to', 'references', 'body', 'mailing_list', 'to', 'cc', 'raw_date_string', 'log', 'content_type', 'filename', 'time_stamp'])
+ALLOWED_FIELDS = set(['from', 'subject', 'date', 'message_id', 'in_reply_to', 'references', 'body_text', 'body_html', 'body_image', 'mailing_list', 'to', 'cc', 'raw_date_string', 'log', 'content_type', 'filename', 'time_stamp', 'original_url', 'flagged_abuse'])
 IGNORED_FIELDS = set(['delivered_to', 'received', 'mime_version', 'content_transfer_encoding'])
 
 # Code to generate timezone map found at https://stackoverflow.com/questions/1703546/parsing-date-time-string-with-timezone-abbreviated-name-in-python/4766400#4766400
@@ -160,7 +160,7 @@ def get_msgs_from_gcs(storage_client, bucketname, fpath):
     try:
         if 'text/plain' in blob.content_type:
             # Parse and group messages using /n for specific cases in Golang messages
-            split_regex_value = r'(\/n(.*?)(?:Received:|MIME-Version|X-Recieved:|X-BeenThere:))'
+            split_regex_value = r'(\/n(.*?)(?:Received:|MIME-Version|X-Recieved:|X-BeenThere:|Date:))'
             add_split_val = '/n'
             messages_blob = blob.download_as_text()
             # Swap all Send reply to or Reply-to with In-Reply-To
@@ -205,43 +205,44 @@ def get_msg_objs_list(msgs, bucketname, filename):
             msg_parts.extend(res.items())
             msg_parts.append(('mailing_list', bucketname))
             msg_parts.append(('filename', filename))
+            if "abuse" in filename:
+                msg_parts.append(('flagged_abuse', True))
             # Passing in time_stamp and AUTO to BQ generates an automatic timestamp for the row
             msg_parts.append(('time_stamp', 'AUTO'))
+            # Capture original_url if it exists in message
+            if "original_url:" in msg:
+                val = re.split(r'original_url:', msg)
+                msg_parts.append(('original_url', val[1]))
             msg_parts.extend(parse_body(res))
             msg_list.append(msg_parts)
 
     return msg_list
 
-# TODO find better way to convert the base64 bytestring to a a string for the json bq ingestion
-# def encode_body(body):
-#     """
-#     Include base64-ified bytestring for the body to bigquery to provide backup in case decoding is corrupted. This may be redundant and if so remove
-#     """
-#     # it out)
-#     if type(body) is str:
-#         body = body.encode()
-#     b64_bstring = base64.b64encode(body)
-#     return (str(b64_bstring)[2:])[:-1]
-
-
 def parse_body(msg_object):
     """Given a parsed msg object, extract the text version of its body.
     """
     body_objects = []
-    body = ""
+    body_text, body_html, body_image= "", "", ""
     # Get body content and add to msg_parts_list
     if msg_object.is_multipart():
         for part in msg_object.walk():
             ctype = part.get_content_type()
             cdispo = str(part.get('Content-Disposition'))
             if ctype == 'text/plain' and 'attachment' not in cdispo:
-                body = part.get_payload()
-                break
+                body_text += part.get_payload()
+            if ctype == 'text/html':
+                body_html += part.get_payload()
+            if ctype == 'image/jpeg':
+                body_image += part.get_payload()
     else:
-        body = msg_object.get_payload()
+        body_text = msg_object.get_payload()
 
-    if body:
-        body_objects.append(('Body', body))
+    if body_text:
+        body_objects.append(('body_text', body_text))
+    if body_html:
+        body_objects.append(('body_html', body_html))
+    if body_image:
+        body_objects.append(('body_image', body_image))
     return body_objects
 
 # TODO: Python chat channel, confirmed this approach | alternative if/elif potential but need to confirm will not miss trying all options without throwing one exception that stops it
@@ -363,8 +364,11 @@ def parse_everything_else(ee_raw):
             # Remove  leading/trailing whitespace
             ee_objects[ee_key] = ee_raw.strip()
         except AttributeError as err:
-            print('for *{}*, got error {} for {}'.format(ee_key, err, ee_raw))
-            ee_objects[ee_key] = '{}'.format(ee_raw.strip())
+            if type(ee_raw) == bool:
+                ee_objects[ee_key] = ee_raw
+            else:
+                print('for *{}*, got error {} for {}'.format(ee_key, err, ee_raw))
+                ee_objects[ee_key] = '{}'.format(ee_raw.strip())
     # elif ee_key in IGNORED_FIELDS:
     #     print('****Ignoring unsupported message field: {} in msg {}'.format(ee_key, ee_raw))
 

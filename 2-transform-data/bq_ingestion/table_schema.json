@@ -88,9 +88,19 @@
       "fields": []
   },
   {
-      "name": "body",
+      "name": "body_text",
       "type": "STRING",
       "mode": "NULLABLE"
+  },
+  {
+    "name": "body_html",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "body_image",
+    "type": "STRING",
+    "mode": "NULLABLE"
   },
   {
     "name": "content_type",
@@ -99,6 +109,16 @@
   },
   {
     "name": "log",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "flagged_abuse",
+    "type": "BOOLEAN",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "original_url",
     "type": "STRING",
     "mode": "NULLABLE"
   },

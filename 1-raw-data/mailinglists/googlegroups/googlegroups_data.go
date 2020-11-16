@@ -354,7 +354,7 @@ func storeTextWorker(ctx context.Context, storage gcs.Connection, httpToString u
 			} else if response == "" {
 				log.Printf("Response was empty for url: %s", msgURL)
 			}
-			textStore = textStore + "/n" + response + "/n" + fmt.Sprintf("original_url: %s", msgURL)
+			textStore = textStore + "/n" + response + "\n" + fmt.Sprintf("original_url: %s", msgURL) + "\n"
 		}
 		if _, err = storage.StoreContentInBucket(ctx, urls.fileName, textStore, "text"); err != nil {
 			results <- fmt.Errorf("%w: %v", storageErr, err)
