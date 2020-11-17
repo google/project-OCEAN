@@ -18,12 +18,11 @@ again.
 
 ## Issues
 
-Use the [Issue Template](docs/ISSUE_TEMPLATE.md) to log standard issues.
+Use the [Issue Template](docs/ISSUE_TEMPLATE.md) to log project issues.
 
 ## Pull Requests 
 
-Use the [Pull Request Template](docs/PULL_REQUEST_TEMPLATE.md) to log issues.
-
+Use the [Pull Request Template](docs/PULL_REQUEST_TEMPLATE.md) to submit changes and new code to the project. 
 
 ## Code reviews
 
