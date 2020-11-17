@@ -20,6 +20,7 @@ import extract_msgs as em
 import email
 import mock
 import gzip
+import json
 
 class Test(unittest.TestCase):
 
@@ -250,7 +251,7 @@ original_url: https://en.wikipedia.org/wiki/Ida_B._Wells'''
     @mock.patch("google.cloud.storage.Client")
     @mock.patch("google.cloud.storage.bucket.Bucket")
     @mock.patch("google.cloud.storage.blob.Blob")
-    def create_bucket_mock(self, bucket_name, blob_name, content_type, blob_contents,  Blob, Bucket, Client):
+    def create_bucket_mock(self, bucket_name, blob_name, content_type, blob_contents, Blob, Bucket, Client):
         client = Client()
 
         bucket_mock = Bucket(name=bucket_name)
@@ -725,9 +726,51 @@ original_url: https://en.wikipedia.org/wiki/Ida_B._Wells'''
             got_json = em.convert_msg_to_json(test["msg"])
             self.assertEqual(want_json[key], got_json, "Convert message to json error")
 
+    
+    @mock.patch("google.cloud.storage.Client")
+    def create_client_mock(self, Client):
+        client = Client()
+
+        with open("table_schema.json") as f:
+            schema = json.load(f)
+        table_framework = em.bigquery.Table("some_project.some_dataset.123", schema=schema)
+        client.create_table(table_framework)
+
+        return client
+
+
     # TODO simulate load to BQ and test the components of this function esp errors
     def test_store_in_bigquery(self):
-        pass
+        input_data = {
+            "test1": {
+                "comparison_type": "Test line by line loading with an existing table",
+                "client": self.create_client_mock(),
+                "json_rows": [
+                                {
+                                    "name": "from_name",
+                                    "type": "STRING",
+                                    "mode": "NULLABLE"
+                                },
+                                {
+                                    "name": "from_email",
+                                    "type": "STRING",
+                                    "mode": "NULLABLE"
+                                },
+                            ],
+                "table_id": "some_project.some_dataset.123",
+                "chunk_size": 1,
+            },
+
+        }
+        want_num = {
+            "test1": 100,
+        }
+
+        for key, test in input_data.items():
+            # print(test['comparison_type'])
+            num_rows_loaded = em.store_in_bigquery(test["client"], test["json_rows"], test["table_id"], test["chunk_size"])
+            self.assertEqual(want_num[key], num_rows_loaded, "Store in BQ error")
+
 
 if __name__ == '__main__':
     unittest.main()
