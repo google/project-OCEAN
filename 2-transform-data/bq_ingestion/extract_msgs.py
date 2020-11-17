@@ -218,6 +218,14 @@ def get_msg_objs_list(msgs, bucketname, filename):
 
     return msg_list
 
+def check_body_to(body_text):
+    body_to = ""
+    if body_text and re.search(r"^(.*?)wrote:", body_text):
+        body_to = re.search(r"^(.*?)wrote:", body_text).groups()[0]
+    if body_to and re.search(r"On.*[+,-]\d{2,4}?(?:[,,(\s)])", body_to):
+        body_to = re.split(r"On.*[+,-]\d{2,4}?(?:[,,(\s)])", body_to)[1]
+    return body_to.strip()
+
 def parse_body(msg_object):
     """Given a parsed msg object, extract the text version of its body.
     """
@@ -243,6 +251,11 @@ def parse_body(msg_object):
         body_objects.append(('body_html', body_html))
     if body_image:
         body_objects.append(('body_image', body_image))
+
+    body_to = check_body_to(body_text)
+    if body_to:
+        body_objects.append(('body_to', body_image))
+
     return body_objects
 
 # TODO: Python chat channel, confirmed this approach | alternative if/elif potential but need to confirm will not miss trying all options without throwing one exception that stops it
@@ -306,24 +319,35 @@ def parse_contacts(raw_contact):
     to_from = raw_contact[0].lower().strip()
     raw_contact = raw_contact[1]
     contact_objects = {}
-    contact_keys = {'from': ['raw_from_string', 'from_name', 'from_email'], 'to': ['raw_to_string','to_name','to_email'], 'author': ['raw_from_string', 'from_name', 'from_email'], 'cc': ['raw_cc_string','cc_name','cc_email'],}
+    contact_keys = {'from': ['raw_from_string', 'from_name', 'from_email'], 'to': ['raw_to_string','to_name','to_email'], 'body_to': ['raw_to_string','to_name','to_email'], 'author': ['raw_from_string', 'from_name', 'from_email'], 'cc': ['raw_cc_string','cc_name','cc_email'],}
     contact_string = raw_contact
 
     # Store raw from string after its decoded
     contact_objects[contact_keys[to_from][0]] = contact_string
 
     # Format from string and replace ' at ' syntax for pipermail email otherwise its ignored
-    contact_string = contact_string.lower().strip().replace(' at ', '@')
+    contact_string = contact_string.lower().replace(' at ', '@')
+    if re.search(r'\([A-Za-z.].*@.*.com\)', contact_string):
+        contact_string = contact_string.replace('(', '<').replace(')','>')
+    if "@" not in contact_string:
+        contact_string += "<>"
 
-    # TODO add msg.get_all("from" or "to", []) if there are multiple
+    # TODO add msg.get_all("from" or "to", []) if there are multiple & this can be clearer
     # Split out and store name and email
     parsed_addr = email.utils.getaddresses([contact_string])
     # TODO: better error checks/handling? The raw string will still be stored.
     try:
+        # If email in first part then setup the matching 
+        if "@" in parsed_addr[0][0]:
+            val_one, val_two = contact_keys[to_from][2], contact_keys[to_from][1]
+        else:
+            val_one, val_two = contact_keys[to_from][1], contact_keys[to_from][2]
+
         if parsed_addr[0][0]:
-            contact_objects[contact_keys[to_from][1]] = parsed_addr[0][0]
+            contact_objects[val_one] = parsed_addr[0][0]
         if parsed_addr[0][1]:
-            contact_objects[contact_keys[to_from][2]] = parsed_addr[0][1]
+            contact_objects[val_two] = parsed_addr[0][1]
+
     except IndexError as e:
         print("Broke parse on {}", parsed_addr)
 
@@ -379,7 +403,7 @@ def convert_msg_to_json(msg_objects):
 
     json_result = {'refs':[]} # this repeated field is not nullable
 
-    msg_keys = {'date': parse_datestring, 'from': parse_contacts, 'to': parse_contacts, 'author': parse_contacts, 'cc': parse_contacts, 'references': parse_references}
+    msg_keys = {'date': parse_datestring, 'from': parse_contacts, 'to': parse_contacts, 'body_to': parse_contacts,'author': parse_contacts, 'cc': parse_contacts, 'references': parse_references}
 
     for (obj_key, obj_val) in msg_objects:
         # Parse fields identified as special
