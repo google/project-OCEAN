@@ -389,13 +389,12 @@ original_url: https://en.wikipedia.org/wiki/Ida_B._Wells'''
             "test3": self.ex_parsed_abuse,
             "test4": self.ex_parsed_multipart,
         }
-        #
+
         # TODO mock getting the body and skip that call?
         for key, test in msg_input.items():
             # print(test['comparison_type'])
             got_msg_list = em.get_msg_objs_list(test["msgs"], test["bucketname"], test["filename"])
             self.assertEqual(want_msg_list[key], got_msg_list, "Get msg objects error")
-
 
     def test_parse_body(self):
 
@@ -406,7 +405,7 @@ original_url: https://en.wikipedia.org/wiki/Ida_B._Wells'''
             },
             "test2": {
                 "comparison_type": "Test get body text from single part message",
-                    "msg_obj": email.message_from_string('What is the Voter Rights Act?\n'),
+                "msg_obj": email.message_from_string('What is the Voter Rights Act?\n'),
             }
         }
         want_body = {
@@ -417,6 +416,38 @@ original_url: https://en.wikipedia.org/wiki/Ida_B._Wells'''
         for key, test in msg_input.items():
             # print(test['comparison_type'])
             got_body = em.parse_body(test["msg_obj"])
+            self.assertEqual(want_body[key], got_body, "Parse body error")
+
+    def test_check_body_to(self):
+        msg_input = {
+            "test1": {
+                "comparison_type": "Test splitting name and email format 1 out of body",
+                "msg_obj": "Sharice Davids <sharice at davids.com> wrote:"
+            },
+            "test2": {
+                "comparison_type": "Test splitting name and email format 2 out of body",
+                "msg_obj": "Yvette Herrell (yvette at herrell.com) wrote:"
+            },
+            "test3": {
+                "comparison_type": "Test removing date format 1 from body",
+                "msg_obj": "On 03-Nov-20 Deb Haaland wrote:"
+            },
+            "test4": {
+                "comparison_type": "Test removing date format 2 from body",
+                "msg_obj": "On 3 Nov 2020 19:20:01 +0200, Cori Bush wrote:"
+            }
+        }
+
+        want_body = {
+            "test1": "Sharice Davids <sharice at davids.com>",
+            "test2": "Yvette Herrell (yvette at herrell.com)",
+            "test3": "Deb Haaland",
+            "test4": "Cori Bush",
+        }
+        #
+        for key, test in msg_input.items():
+            # print(test['comparison_type'])
+            got_body = em.check_body_to(test["msg_obj"])
             self.assertEqual(want_body[key], got_body, "Parse body error")
 
     # TODO test empty date and all the exceptions
@@ -515,7 +546,18 @@ original_url: https://en.wikipedia.org/wiki/Ida_B._Wells'''
                 "comparison_type": "Test get from contact from string with at changed to @",
                 "msg_obj": ('From', 'From: us.congress at gmail.com (US Congress)\n')
             },
-
+            "test8": {
+                "comparison_type": "Test parse contact for body_to with email surrounded by <>",
+                "msg_obj": ('body_to', 'Sharice Davids <sharice at davids.com>')
+            },
+            "test9": {
+                "comparison_type": "Test parse contact for body_to with email surrounded by ()",
+                "msg_obj": ('body_to', 'Yvette Herrell (yvette at herrell.com)')
+            },
+            "test10": {
+                "comparison_type": "Test parse contact for body_to with name only",
+                "msg_obj": ('body_to', 'To: Cori Bush')
+            },
             # TODO email utils does not parse the name - potentially need alternative
             # "test": {
             #     "comparison_type": "Test get contact without email",
@@ -531,6 +573,10 @@ original_url: https://en.wikipedia.org/wiki/Ida_B._Wells'''
             "test5": {'raw_from_string': 'US Congress <us.congress@gmail.com>\n', 'from_name': "us congress", 'from_email': 'us.congress@gmail.com' },
             "test6": {'raw_cc_string': 'Ida B Wells <ida.b.wells@gmail.com>\n', 'cc_name': "ida b wells", 'cc_email': 'ida.b.wells@gmail.com'},
             "test7": {'raw_from_string': 'From: us.congress at gmail.com (US Congress)\n', 'from_name': "us congress", 'from_email': 'us.congress@gmail.com' },
+            "test8": {'raw_to_string': 'Sharice Davids <sharice at davids.com>', 'to_name': "sharice davids", 'to_email': 'sharice@davids.com'},
+            "test9": {'raw_to_string': 'Yvette Herrell (yvette at herrell.com)', 'to_name': "yvette herrell", 'to_email': 'yvette@herrell.com'},
+            "test10": {'raw_to_string': 'To: Cori Bush', 'to_name': "cori bush"},
+
             # "test": {'raw_to_string': 'Ida B Wells\n', 'to_name': "ida b wells"},
         }
         #
