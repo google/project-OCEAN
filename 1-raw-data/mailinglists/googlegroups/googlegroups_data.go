@@ -356,14 +356,14 @@ func storeTextWorker(ctx context.Context, storage gcs.Connection, httpToString u
 			}
 			textStore = textStore + "/n" + response + "\n" + fmt.Sprintf("original_url: %s", msgURL) + "\n"
 		}
-		if _, err = storage.StoreContentInBucket(ctx, urls.fileName, textStore, "text"); err != nil {
-			results <- fmt.Errorf("%w: %v", storageErr, err)
-			return
-		}
 		if urls.fileName != "" {
 			log.Printf("Storing %s", urls.fileName)
 		} else {
 			results <- fmt.Errorf("URL map filename threw an error: %w", emptyFileNameErr)
+			return
+		}
+		if _, err = storage.StoreContentInBucket(ctx, urls.fileName, textStore, "text"); err != nil {
+			results <- fmt.Errorf("%w: %v", storageErr, err)
 			return
 		}
 	}

@@ -103,6 +103,12 @@ func (gcs *StorageConnection) CreateBucket(ctx context.Context) (err error) {
 	}
 }
 
+// Add bucketname to filename
+func addBucketToFileName(fileName, bucketName string) (newName string) {
+	fileNameParts := strings.SplitN(fileName, ".", 2)
+	return fmt.Sprintf("%s-%s.%s", fileNameParts[0], bucketName, fileNameParts[1])
+}
+
 // Store url content in storage.
 func (gcs *StorageConnection) StoreContentInBucket(ctx context.Context, fileName, content, source string) (testVerifyCopyCalled int64, err error) {
 	var response *http.Response
@@ -112,6 +118,9 @@ func (gcs *StorageConnection) StoreContentInBucket(ctx context.Context, fileName
 		err = fmt.Errorf("%w", emptyFileNameErr)
 		return
 	}
+
+	fileName = addBucketToFileName(fileName, gcs.BucketName)
+
 	obj := gcs.bucket.Object(fileName)
 
 	// w implements io.Writer.

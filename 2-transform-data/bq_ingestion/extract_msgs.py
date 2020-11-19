@@ -337,7 +337,7 @@ def parse_contacts(raw_contact):
     parsed_addr = email.utils.getaddresses([contact_string])
     # TODO: better error checks/handling? The raw string will still be stored.
     try:
-        # If email in first part then setup the matching 
+        # If email in first part then setup the matching
         if "@" in parsed_addr[0][0]:
             val_one, val_two = contact_keys[to_from][2], contact_keys[to_from][1]
         else:
