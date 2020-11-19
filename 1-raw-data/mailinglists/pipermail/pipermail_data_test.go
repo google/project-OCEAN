@@ -23,6 +23,38 @@ import (
 	"github.com/google/project-OCEAN/1-raw-data/utils"
 )
 
+
+func TestChangeMonthToDigit(t *testing.T) {
+
+	tests := []struct {
+		comparisonType string
+		fileName      string
+		wantName        string
+	}{
+		{
+			comparisonType: "Test month string converted to two digit form",
+			fileName:      "1851-October.txt.gz",
+			wantName:        "1851-10.txt.gz",
+		},
+		{
+			comparisonType: "Test month string converted to two digit form",
+			fileName:      "3188-January.txt.gz",
+			wantName:       "3188-01.txt.gz",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.comparisonType, func(t *testing.T) {
+			gotName := changeMonthToDigit(test.fileName)
+			if strings.Compare(test.wantName, gotName) != 0 {
+				t.Errorf("Failed at converting month string to digits. Got: %v and wanted: %v.", gotName, test.wantName)
+			}
+
+		})
+
+	}
+}
+
 func TestGetPipermailData(t *testing.T) {
 	ctx := context.Background()
 	storage := utils.NewFakeStorageConnection("pipermail")

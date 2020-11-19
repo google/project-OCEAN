@@ -28,6 +28,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/google/project-OCEAN/1-raw-data/gcs"
@@ -37,6 +38,14 @@ import (
 var (
 	storageErr = errors.New("Storage failed")
 )
+
+func changeMonthToDigit(fileName string) (newName string){
+	fileNameParts := strings.SplitN(fileName, ".", 2)
+	fileNameDateParts := strings.Split(fileNameParts[0], "-")
+	year, month := fileNameDateParts[0], fileNameDateParts[1]
+	formatedDateTime, _ := time.Parse("2006-January-02", fmt.Sprintf("%s-%s-02", year, month))
+	return fmt.Sprintf("%s-%02d.%s", year, int(formatedDateTime.Month()), fileNameParts[1])
+}
 
 // Get, parse and store Pipermail data in GCS.
 func GetPipermailData(ctx context.Context, storage gcs.Connection, groupName string, httpToDom utils.HttpDomResponse) (storeErr error) {
@@ -59,7 +68,8 @@ func GetPipermailData(ctx context.Context, storage gcs.Connection, groupName str
 			if check[len] == "gz" {
 				if strings.Split(filename, ":")[0] != "https" {
 					url := fmt.Sprintf("%v%v", mailingListURL, filename)
-					if _, err = storage.StoreContentInBucket(ctx, filename, url, "url"); err != nil {
+					revisedFileName := changeMonthToDigit(filename)
+					if _, err = storage.StoreContentInBucket(ctx, revisedFileName, url, "url"); err != nil {
 						// Each func interface doesn't allow passing errors?
 						storeErr = fmt.Errorf("%w: %v", storageErr, err)
 					}
