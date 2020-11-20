@@ -47,10 +47,11 @@ type Connection interface {
 }
 
 type StorageConnection struct {
-	ProjectID  string
-	BucketName string
-	client     stiface.Client
-	bucket     stiface.BucketHandle
+	ProjectID    string
+	BucketName   string
+	SubDirectory string
+	client       stiface.Client
+	bucket       stiface.BucketHandle
 }
 
 func (gcs *StorageConnection) ConnectClient(ctx context.Context) (err error) {
@@ -104,14 +105,17 @@ func (gcs *StorageConnection) CreateBucket(ctx context.Context) (err error) {
 }
 
 // Add bucketname to filename
-func addBucketToFileName(fileName, bucketName string) (newName string) {
+func addBucketToFileName(fileName, addName string) (newName string) {
 	fileNameParts := strings.SplitN(fileName, ".", 2)
-	return fmt.Sprintf("%s-%s.%s", fileNameParts[0], bucketName, fileNameParts[1])
+	return fmt.Sprintf("%s-%s.%s", fileNameParts[0], addName, fileNameParts[1])
 }
 
 // Store url content in storage.
 func (gcs *StorageConnection) StoreContentInBucket(ctx context.Context, fileName, content, source string) (testVerifyCopyCalled int64, err error) {
-	var response *http.Response
+	var (
+		response *http.Response
+		addName string
+	)
 
 	//TODO add more filename validation
 	if fileName == "" {
@@ -119,7 +123,15 @@ func (gcs *StorageConnection) StoreContentInBucket(ctx context.Context, fileName
 		return
 	}
 
-	fileName = addBucketToFileName(fileName, gcs.BucketName)
+	// Add either the subdirectory or the bucketname
+	if gcs.SubDirectory != "" {
+		addName = gcs.SubDirectory
+		fileName = fmt.Sprintf("%s/%s", addName, fileName)
+	} else {
+		addName = gcs.BucketName
+	}
+
+	fileName = addBucketToFileName(fileName, addName)
 
 	obj := gcs.bucket.Object(fileName)
 
