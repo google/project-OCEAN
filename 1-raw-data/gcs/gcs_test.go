@@ -159,27 +159,27 @@ func TestCreateBucket(t *testing.T) {
 	tests := []struct {
 		comparisonType string
 		bucketName     string
-		storage            *StorageConnection
+		storage        *StorageConnection
 		projectID      string
 		wantErr        error
 	}{
 		{
 			comparisonType: "Test Create bucket is called",
-			storage:            gcs,
+			storage:        gcs,
 			bucketName:     "Environmentalist",
 			projectID:      "Environmentalist",
 			wantErr:        nil,
 		},
 		{
 			comparisonType: "Test Create bucket is not called",
-			storage:            gcs,
+			storage:        gcs,
 			bucketName:     "Environmentalist",
 			projectID:      "Economist",
 			wantErr:        nil,
 		},
 		{
 			comparisonType: "Test empty bucket name and error",
-			storage:            gcs,
+			storage:        gcs,
 			bucketName:     "",
 			projectID:      "",
 			wantErr:        emptyBucketName,

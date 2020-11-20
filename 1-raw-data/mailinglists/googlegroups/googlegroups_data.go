@@ -145,7 +145,6 @@ func getTotalTopics(dom *goquery.Document) (totalTopics int) {
 	return
 }
 
-
 // Get message ids from topic pages and create list of raw msg urls by month
 func getMsgIDsFromDom(org, topicId, groupName string, dom *goquery.Document) (rawMsgUrl string) {
 	regTopicURL := regexp.MustCompile(fmt.Sprintf("/d/msg/%s", groupName))

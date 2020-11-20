@@ -32,16 +32,19 @@ import (
 )
 
 var (
-	projectID   = flag.String("project-id", "", "GCP Project id.")
-	bucketNames = flag.String("bucket-name", "test", "Bucket name to store files. Enter 1 or more and use spaces to identify. CAUTION also enter the buckets to load to in the same order.")
-	mailingList = flag.String("mailinglist", "piper", "Choose which mailing list to process either piper (default), mailman, googlegroups")
-	groupNames  = flag.String("groupname", "", "Mailing list group name. Enter 1 or more and use spaces to identify. CAUTION also enter the buckets to load to in the same order.")
-	startDate   = flag.String("start-date", "", "Start date in format of year-month-date and 4dig-2dig-2dig.")
-	endDate     = flag.String("end-date", "", "End date in format of year-month-date and 4dig-2dig-2dig.")
-	workerNum   = flag.Int("workers", 1, "Number of workers to use for goroutines.")
+	projectID    = flag.String("project-id", "", "GCP Project id.")
+	bucketName   = flag.String("bucket-name", "test", "Bucket name to store files.")
+	subDirectory = flag.String("subdirectory", "", "Subdirectory to store files. Enter 1 or more and use spaces to identify. CAUTION also enter the groupNames to load to in the same order.")
+	mailingList  = flag.String("mailinglist", "piper", "Choose which mailing list to process either piper (default), mailman, googlegroups")
+	groupNames   = flag.String("groupname", "", "Mailing list group name. Enter 1 or more and use spaces to identify. CAUTION also enter the buckets to load to in the same order.")
+	startDate    = flag.String("start-date", "", "Start date in format of year-month-date and 4dig-2dig-2dig.")
+	endDate      = flag.String("end-date", "", "End date in format of year-month-date and 4dig-2dig-2dig.")
+	workerNum    = flag.Int("workers", 1, "Number of workers to use for goroutines.")
+	subNames     []string
 )
 
 func main() {
+
 	flag.Parse()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -55,12 +58,18 @@ func main() {
 		log.Fatalf("Connect GCS failes: %v", err)
 	}
 
-	bNames := strings.Split(*bucketNames, " ")
+	if *subDirectory != "" {
+		subNames = strings.Split(*subDirectory, " ")
+	}
+
+	storageConn.BucketName = *bucketName
 	httpToDom := utils.DomResponse
 
 	for idx, groupName := range strings.Split(*groupNames, " ") {
 
-		storageConn.BucketName = bNames[idx]
+		if *subDirectory != "" {
+			storageConn.SubDirectory = subNames[idx]
+		}
 
 		if err := storageConn.CreateBucket(ctx); err != nil {
 			log.Fatalf("Create GCS Bucket failed: %v", err)

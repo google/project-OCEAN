@@ -23,22 +23,21 @@ import (
 	"github.com/google/project-OCEAN/1-raw-data/utils"
 )
 
-
 func TestChangeMonthToDigit(t *testing.T) {
 
 	tests := []struct {
 		comparisonType string
-		fileName      string
-		wantName        string
+		fileName       string
+		wantName       string
 	}{
 		{
 			comparisonType: "Test month string converted to two digit form",
-			fileName:      "1851-October.txt.gz",
-			wantName:        "1851-10.txt.gz",
+			fileName:       "1851-October.txt.gz",
+			wantName:       "1851-10.txt.gz",
 		},
 		{
 			comparisonType: "Test month string converted to two digit form",
-			fileName:      "3188-January.txt.gz",
+			fileName:       "3188-January.txt.gz",
 			wantName:       "3188-01.txt.gz",
 		},
 	}

@@ -39,7 +39,7 @@ var (
 	storageErr = errors.New("Storage failed")
 )
 
-func changeMonthToDigit(fileName string) (newName string){
+func changeMonthToDigit(fileName string) (newName string) {
 	fileNameParts := strings.SplitN(fileName, ".", 2)
 	fileNameDateParts := strings.Split(fileNameParts[0], "-")
 	year, month := fileNameDateParts[0], fileNameDateParts[1]
