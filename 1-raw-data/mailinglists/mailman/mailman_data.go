@@ -114,7 +114,7 @@ func GetMailmanData(ctx context.Context, storage gcs.Connection, groupName, star
 		startDateTime = startDateTime.AddDate(0, 1, 0)
 		endDateTime = endDateTime.AddDate(0, 1, 0)
 	}
-	if endDateTime.Format("2006-01-02") != orgEndDateTime.Format("2006-01-02") {
+	if endDateTime.Format("2006-01-02") < orgEndDateTime.Format("2006-01-02") {
 		log.Printf("Did not copy all dates. Stopped at %v vs. orginal date: %v", endDateTime.Format("2006-01-02"), orgEndDateTime.Format("2006-01-02"))
 		return fmt.Errorf("%w to get all the dates, stopped at: %v when expected to stop at: %v", storageErr, endDateTime.Format("2006-01-02"), orgEndDateTime.Format("2006-01-02"))
 	}
