@@ -334,7 +334,12 @@ original_url: https://en.wikipedia.org/wiki/Ida_B._Wells'''
                 "bucket_name": 'voter-rights-bucket',
                 "filename": '1965-08.txt.gz'
             },
-
+            "test11": {
+                "comparison_type": "Test prefix",
+                "client": self.create_bucket_mock('voter-rights-bucket', 'vr-blob', 'text/plain', self.ex_text_multipart),
+                "bucket_name": 'voter-rights-bucket',
+                "filename": 'us/1965-08.txt.gz'
+            },
         }
         want_msg_list = {
             "test1": [self.ex_text_post_from_uk],
@@ -346,7 +351,8 @@ original_url: https://en.wikipedia.org/wiki/Ida_B._Wells'''
             "test7": self.ex_message_split_edgecases_txt,
             "test8": self.ex_message_split_edgecases_gzip,
             "test9": ["In-Reply-To:<voting-rights@mail.gmail.com>\n"],
-            "test10": self.ex_text_multipart_split
+            "test10": self.ex_text_multipart_split,
+            "test11": self.ex_text_multipart_split
         }
 
         for key, test in input_gcs.items():

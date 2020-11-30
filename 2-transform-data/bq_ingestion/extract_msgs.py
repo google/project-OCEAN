@@ -110,13 +110,13 @@ def decode_messsage(blob, additional_codecs=[]):
     print('Cannot decode blob in decode_message: {} based on error: {}\n'.format(blob, err))
     raise err
 
-def decompress_line_by_line(blob, fpath, split_regex_value):
+def decompress_line_by_line(blob, filenamepath, split_regex_value):
     # Include timestamp in local file name to avoid archive name clashes in case we're processing multiple buckets concurrently.
     message_lines, messages_list_result = [], []
 
     # TODO: this will break if the 'filename' includes a path. Check for/create parent dir first.
     # Pull down file locally to loop over
-    temp_file = '/tmp/{}_{}'.format(int(time.time()), fpath)
+    temp_file = '/tmp/{}_{}'.format(int(time.time()), filenamepath)
     blob.download_to_filename(temp_file)
 
     try:
@@ -141,7 +141,7 @@ def decompress_line_by_line(blob, fpath, split_regex_value):
             if message_lines:
                 messages_list_result.append(b''.join(message_lines))
     except Exception as err:
-        print('{} not successfully gunzipped and throws error: {}'.format(fpath, err))
+        print('{} not successfully gunzipped and throws error: {}'.format(filenamepath, err))
     # Delete temp file
     finally:
         if os.path.exists(temp_file):
@@ -149,12 +149,12 @@ def decompress_line_by_line(blob, fpath, split_regex_value):
 
     return messages_list_result
 
-def get_msgs_from_gcs(storage_client, bucketname, fpath):
+def get_msgs_from_gcs(storage_client, bucketname, filenamepath):
     """Read a gcs file, and build an array of messages text. Returns the array of messages.
     """
     bucket = storage_client.get_bucket(bucketname)
-    blob = bucket.get_blob(fpath)
-    messages_blob = ""
+    blob = bucket.get_blob(filenamepath)
+    messages_blob, split_regex_value = "", ""
     message_lines, messages_list_result = [], []
     split_val = '[*****cut gobbled1gook*****]'
     try:
@@ -179,13 +179,13 @@ def get_msgs_from_gcs(storage_client, bucketname, fpath):
             messages_blob = re.sub(r'^^Send reply to:', 'In-Reply-To:', messages_blob)
     except UnicodeDecodeError as err:
         print("Getting GCS data Error: {}. Downloading and decompressing, go over file line by line to resolve.".format(err))
-        messages_list_result = decompress_line_by_line(blob, fpath)
+        messages_list_result = decompress_line_by_line(blob, filenamepath)
     except EOFError as err:
         # Catches a few 'empty' archives for which this error will be generated.
         print('Getting GCS data Error: {}. Not successfully gunzipped or empty and throws err.'.format(err))
     except AttributeError as err:
         # Catches a few 'empty' archives for which this error will be generated.
-        print('Getting GCS data Error: {}. Check the file {} exists and spelled correctly.'.format(err, fpath))
+        print('Getting GCS data Error: {}. Check the file {} exists and spelled correctly.'.format(err, filenamepath))
 
     if not messages_list_result and split_regex_value and messages_blob:
         # Split messages into a list through regex, add unique split value, split on that unique value and filter for any empty values in list. Goal avoid edge cases and retain core info that are part of split regex value.
@@ -449,17 +449,13 @@ def store_in_bigquery(client, json_rows, table_id, chunk_size):
             num_rows_loaded += store_in_bigquery(client, json_row, table_id, reduce_chunk_size)
     return num_rows_loaded
 
-def get_bucket_name(bucket_name):
-    if '-gzip' in bucket_name:
-        return bucket_name.replace('-gzip', '')
-    elif '-txt' in bucket_name:
-        return bucket_name.replace('-txt', '')
-    return bucket_name
-
 def get_filenames(storage_client, bucketname, filenames=None, prefix=None):
     # Get list of filenames
     if filenames:  # for testing: process just this file
-        return filenames.split(" ")
+        if prefix:
+            return [prefix + "/" + name for name in filenames.split(" ")]
+        else:
+            return filenames.split(" ")
     return list_bucket_filenames(storage_client, bucketname, prefix)
 
 def get_table_id(projectid, tableid):
@@ -489,16 +485,16 @@ def main():
 
 # TODO pull all below into script to test - note error if there is a space inn the filename that is entered - it is empty and creates an error on blob above
     filenames = get_filenames(storage_client, args.bucketname, args.filename, args.prefix)
-    bucket_name = get_bucket_name(args.bucketname)
 
     for filename in filenames:
         print('---------------')
-        print('Working on file: {} from bucket: {}'.format(filename, bucket_name))
+        location_name = args.prefix if args.prefix else args.bucketname
+        print('Working on file: {} from location: {}'.format(filename, location_name))
 
         msgs_list = get_msgs_from_gcs(storage_client, args.bucketname, filename)
 
         if msgs_list:
-            msg_obj_list = get_msg_objs_list(msgs_list, bucket_name, filename)
+            msg_obj_list = get_msg_objs_list(msgs_list, args.bucketname, filename)
             json_result = []
             # Create list of json dicts from parsed msg info
             result = list(map(convert_msg_to_json,msg_obj_list))
