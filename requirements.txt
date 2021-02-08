@@ -28,7 +28,7 @@ google-crc32c==1.0.0
 google-resumable-media==1.1.0
 googleapis-common-protos==1.52.0
 grpcio==1.32.0
-httplib2==0.18.1
+httplib2==0.19.0
 idna==2.10
 ipykernel==5.3.4
 ipython==7.18.1
