@@ -19,7 +19,6 @@ Access and load Mailman data.
 package mailman
 
 //TODO
-// Add cycle to pull data by month if the start and end are multiple months
 // Run this monthly at start of new month to pull all new data
 
 import (
