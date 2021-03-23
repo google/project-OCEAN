@@ -83,7 +83,7 @@ Send2Trash==1.5.0
 six==1.15.0
 soupsieve==2.2.1
 storage==0.0.4.3
-style==1.1.6
+style==1.1.0
 terminado==0.9.3
 testpath==0.4.4
 tornado==6.1
