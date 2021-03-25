@@ -90,7 +90,7 @@ func main() {
 				log.Fatalf("GoogleGroups load failed: %v", err)
 			}
 		default:
-			log.Fatalf("Mailing list %v is not an option. Change the option submitted.: ", mailingList)
+			log.Fatalf("Mailing list %v is not an option. Change the option submitted.", mailingList)
 		}
 	}
 }

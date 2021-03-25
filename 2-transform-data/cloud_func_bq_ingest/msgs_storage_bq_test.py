@@ -14,9 +14,7 @@
 
 
 import unittest
-import datetime
-from dateutil import parser
-import extract_msgs as em
+import msgs_storage_bq as msb
 import email
 import mock
 import gzip
@@ -207,7 +205,6 @@ original_url: https://en.wikipedia.org/wiki/Ida_B._Wells'''
         self.ex_html = 'Voter Rights <html> for all women</html> in 1965'
         self.ex_html_removed = 'Voter Rights  in 1965'
 
-
     # TODO is iso8859 really being tested?
     def test_decode_messsage(self):
 
@@ -235,13 +232,13 @@ original_url: https://en.wikipedia.org/wiki/Ida_B._Wells'''
 
         for key, test in encoded_input.items():
             # print(test['comparison_type'])
-            got_decode = em.decode_messsage(test["data"])
+            got_decode = msb.decode_messsage(test["data"])
             self.assertEqual(want_decode[key], got_decode, "Decode message error")
 
         #Test passing string error
         test5_input = "Hello New York"
         want_test5 = AttributeError
-        self.assertRaises(want_test5, em.decode_messsage, test5_input, "Error raising AttributeError in decode test.")
+        self.assertRaises(want_test5, msb.decode_messsage, test5_input, "Error raising AttributeError in decode test.")
 
     # TODO setup test
     def test_decompress_line_by_line(self):
@@ -357,72 +354,8 @@ original_url: https://en.wikipedia.org/wiki/Ida_B._Wells'''
 
         for key, test in input_gcs.items():
             # print(test['comparison_type'])
-            got_msg_list= em.get_msgs_from_gcs(test['client'], test['bucket_name'], test['filename'])
+            got_msg_list= msb.get_msgs_from_gcs(test['client'], test['bucket_name'], test['filename'])
             self.assertEqual(want_msg_list[key], got_msg_list, "Get msg from gcs error")
-
-    def test_get_msg_objs_list(self):
-
-        msg_input = {
-            "test1": {
-                "comparison_type": "Test get message parts from single message",
-                "msgs": [self.ex_text_post_from_uk],
-                "bucketname":"pankhurst-bucket",
-                "filename":"1999-04.mbox.gzip"
-            },
-            "test2": {
-                "comparison_type": "Test get message parts from multiple messages",
-                "msgs":[self.ex_text_post_from_us1, self.ex_text_post_from_us2],
-                "bucketname": "voter-bucket",
-                "filename":"1999-04.txt"
-            },
-            "test3": {
-                "comparison_type": "Test get url and abuse flag in messages",
-                "msgs":[self.ex_text_post_abuse],
-                "bucketname": "abuse-bucket",
-                "filename":"1881-01-abuse.txt"
-            },
-            "test4": {
-                "comparison_type": "Test parse multipart message",
-                "msgs":[self.ex_text_multipart],
-                "bucketname": 'voter-rights-bucket',
-                "filename": '1965-08.txt.gz'
-            },
-
-        }
-        want_msg_list = {
-            "test1": self.ex_parsed_msg_single,
-            "test2": self.ex_parsed_msg_mult,
-            "test3": self.ex_parsed_abuse,
-            "test4": self.ex_parsed_multipart,
-        }
-
-        # TODO mock getting the body and skip that call?
-        for key, test in msg_input.items():
-            # print(test['comparison_type'])
-            got_msg_list = em.get_msg_objs_list(test["msgs"], test["bucketname"], test["filename"])
-            self.assertEqual(want_msg_list[key], got_msg_list, "Get msg objects error")
-
-    def test_parse_body(self):
-
-        msg_input = {
-            "test1": {
-                "comparison_type": "Test get body text from multipart message",
-                "msg_obj": email.message_from_string(self.ex_text_post_from_uk)
-            },
-            "test2": {
-                "comparison_type": "Test get body text from single part message",
-                "msg_obj": email.message_from_string('What is the Voter Rights Act?\n'),
-            }
-        }
-        want_body = {
-            "test1": [('body_text', 'Full women voting rights passed in U.K.\n\n"We are here, not because we are law-breakers; we are here in our efforts to become law-makers."\n')],
-            "test2": [('body_text', 'What is the Voter Rights Act?\n')],
-        }
-        #
-        for key, test in msg_input.items():
-            # print(test['comparison_type'])
-            got_body = em.parse_body(test["msg_obj"])
-            self.assertEqual(want_body[key], got_body, "Parse body error")
 
     def test_check_body_to(self):
         msg_input = {
@@ -453,8 +386,148 @@ original_url: https://en.wikipedia.org/wiki/Ida_B._Wells'''
         #
         for key, test in msg_input.items():
             # print(test['comparison_type'])
-            got_body = em.check_body_to(test["msg_obj"])
+            got_body = msb.check_body_to(test["msg_obj"])
             self.assertEqual(want_body[key], got_body, "Parse body error")
+
+    def test_parse_body(self):
+
+        msg_input = {
+            "test1": {
+                "comparison_type": "Test get body text from multipart message",
+                "msg_obj": email.message_from_string(self.ex_text_post_from_uk)
+            },
+            "test2": {
+                "comparison_type": "Test get body text from single part message",
+                "msg_obj": email.message_from_string('What is the Voter Rights Act?\n'),
+            }
+        }
+        want_body = {
+            "test1": [('body_text', 'Full women voting rights passed in U.K.\n\n"We are here, not because we are law-breakers; we are here in our efforts to become law-makers."\n')],
+            "test2": [('body_text', 'What is the Voter Rights Act?\n')],
+        }
+        #
+        for key, test in msg_input.items():
+            # print(test['comparison_type'])
+            got_body = msb.parse_body(test["msg_obj"])
+            self.assertEqual(want_body[key], got_body, "Parse body error")
+
+    def test_get_msg_objs_list(self):
+
+        msg_input = {
+            "test1": {
+                "comparison_type": "Test get message parts from single message",
+                "msgs": [self.ex_text_post_from_uk],
+                "bucketname":"pankhurst-bucket",
+                "filenamepath":"mailstuff/1999-04.mbox.gzip"
+            },
+            "test2": {
+                "comparison_type": "Test get message parts from multiple messages",
+                "msgs":[self.ex_text_post_from_us1, self.ex_text_post_from_us2],
+                "bucketname": "voter-bucket",
+                "filenamepath":"mailstuff/1999-04.txt"
+            },
+            "test3": {
+                "comparison_type": "Test get url and abuse flag in messages",
+                "msgs":[self.ex_text_post_abuse],
+                "bucketname": "abuse-bucket",
+                "filenamepath":"mailstuff/1881-01-abuse.txt"
+            },
+            "test4": {
+                "comparison_type": "Test parse multipart message",
+                "msgs":[self.ex_text_multipart],
+                "bucketname": 'voter-rights-bucket',
+                "filenamepath": 'mailstuff/1965-08.txt.gz'
+            },
+
+        }
+        want_msg_list = {
+            "test1": self.ex_parsed_msg_single,
+            "test2": self.ex_parsed_msg_mult,
+            "test3": self.ex_parsed_abuse,
+            "test4": self.ex_parsed_multipart,
+        }
+
+        # TODO mock getting the body and skip that call?
+        for key, test in msg_input.items():
+            # print(test['comparison_type'])
+            got_msg_list = msb.get_msg_objs_list(test["msgs"], test["bucketname"], test["filenamepath"])
+            self.assertEqual(want_msg_list[key], got_msg_list, "Get msg objects error")
+
+    # TODO test one email address, multiple, with or with or without names, with or without symbols
+    # TODO test references where there is one, none and multiple provided
+    # Note the email and other PPI content should be DLPed
+    def test_convert_msg_to_json(self):
+
+        msg_input = {
+            "test1": {
+                "comparison_type":"Test processing msg list",
+                "msg": self.ex_parsed_msg_single[0]
+            },
+            "test2": {
+                "comparison_type":"Test processing msg list with author replacing from and cc is captured",
+                "msg": self.ex_parsed_msg_single_auth_cc[0]
+            },
+            "test3": {
+                "comparison_type":"Test skips if object value doesn't exist",
+                "msg": [('To', 'ida.b.wells@gmail.com'),
+                        ('Subject', 'Voter Rights Act'),
+                        ('Date', ''),
+                        ('CC', ''),
+                        ('mailing_list', 'voter-bucket'),
+                        ('filename', '1999-04.mbox.gzip')]
+            }
+        }
+        want_json = {
+            "test1": {'refs': [{'ref': '<voting-rights-id@mail.gmail.com>'}],
+                      'raw_from_string': 'UK Parliment <uk.parliment@gmail.com>',
+                      'from_name': 'uk parliment',
+                      'from_email': 'uk.parliment@gmail.com',
+                      'raw_to_string': 'Emmeline Pankhurst <emmeline.pankhurst@gmail.com>',
+                      'to_name': 'emmeline pankhurst',
+                      'to_email': 'emmeline.pankhurst@gmail.com',
+                      'subject': 'Voting Rights',
+                      'raw_date_string': 'Mon, July 2 1928 13:46:03 +0100',
+                      'date': '1928-07-02 12:46:03',
+                      'content_type': 'text/plain; charset="utf-8"',
+                      'message_id': '<voting-rights-id@mail.gmail.com>',
+                      'body_text': 'Full women voting rights passed in U.K.\n\n"We are here, not because we are law-breakers; we are here in our efforts to become law-makers."',
+                      'raw_refs_string': '<voting-rights-id@mail.gmail.com>',
+                      'mailing_list': 'pankhurst-bucket',
+                      'filename': '1999-04.mbox.gzip',
+                      'time_stamp': 'AUTO',
+                      },
+            "test2": {'refs': [],
+                      'raw_from_string': 'US Congress <us.congress@gmail.com>',
+                      'from_name': 'us congress',
+                      'from_email': 'us.congress@gmail.com',
+                      'raw_to_string': 'ida.b.wells@gmail.com',
+                      'to_email': 'ida.b.wells@gmail.com',
+                      'raw_cc_string': 'Emmeline Pankhurst <emmeline.pankhurst@gmail.com>',
+                      'cc_name': 'emmeline pankhurst',
+                      'cc_email': 'emmeline.pankhurst@gmail.com',
+                      'subject': 'Voter Rights Act',
+                      'raw_date_string': 'Wed, Aug 6 1965 15:32:20 +0100',
+                      'date': '1965-08-06 14:32:20',
+                      'message_id': '<voter-rights-act-id@mail.gmail.com>',
+                      'body_text': 'Voter`s Rights Act outlawed discriminatory voting practices.\n\nFrom 1913 suffrage march in DC, "Either I go with you or not at all. I am not taking this stand because I personally wish for recognition. I am doing it for the future benefit of my whole race."',
+                      'mailing_list': 'voter-bucket',
+                      'filename': '1999-04.mbox.gzip',
+                      'time_stamp': 'AUTO',
+                      },
+            "test3":{'refs': [],
+                     'raw_to_string': 'ida.b.wells@gmail.com',
+                     'to_email': 'ida.b.wells@gmail.com',
+                     'subject': 'Voter Rights Act',
+                     'mailing_list': 'voter-bucket',
+                     'filename': '1999-04.mbox.gzip',
+                     }
+        }
+        #
+        for key, test in msg_input.items():
+            # print(test['comparison_type'])
+            got_json = msb.convert_msg_to_json(test["msg"])
+            self.assertEqual(want_json[key], got_json, "Convert message to json error")
+
 
     # TODO test empty date and all the exceptions
     def test_parse_datestring(self):
@@ -519,7 +592,7 @@ original_url: https://en.wikipedia.org/wiki/Ida_B._Wells'''
 
         for key, test in date_input.items():
             # print(test['comparison_type'])
-            got_date = em.parse_datestring(test["input"])
+            got_date = msb.parse_datestring(test["input"])
             self.assertEqual(want_date[key], got_date, "Parse datestring error got.")
 
     def test_parse_contacts(self):
@@ -588,7 +661,7 @@ original_url: https://en.wikipedia.org/wiki/Ida_B._Wells'''
         #
         for key, test in msg_input.items():
             # print(test['comparison_type'])
-            got_msg_list = em.parse_contacts(test["msg_obj"])
+            got_msg_list = msb.parse_contacts(test["msg_obj"])
             self.assertEqual(want_msg_list[key], got_msg_list, "Parse contacts error")
 
     def test_parse_references(self):
@@ -609,7 +682,7 @@ original_url: https://en.wikipedia.org/wiki/Ida_B._Wells'''
         #
         for key, test in msg_input.items():
             # print(test['comparison_type'])
-            got_msg_list = em.parse_references(test["msg_obj"])
+            got_msg_list = msb.parse_references(test["msg_obj"])
             self.assertEqual(want_msg_list[key], got_msg_list, "Parse references error")
 
 # TODO test all pairs - not everything covered
@@ -652,84 +725,8 @@ original_url: https://en.wikipedia.org/wiki/Ida_B._Wells'''
 
         for key, test in msg_input.items():
             # print(test['comparison_type'])
-            got_msg_list = em.parse_everything_else(test["msg_obj"])
+            got_msg_list =msb.parse_everything_else(test["msg_obj"])
             self.assertEqual(want_msg_list[key], got_msg_list, "Parse everything else error")
-
-
-    # TODO test one email address, multiple, with or with or without names, with or without symbols
-    # TODO test references where there is one, none and multiple provided
-    # Note the email and other PPI content should be DLPed
-    def test_convert_msg_to_json(self):
-
-        msg_input = {
-            "test1": {
-                "comparison_type":"Test processing msg list",
-                "msg": self.ex_parsed_msg_single[0]
-            },
-            "test2": {
-                "comparison_type":"Test processing msg list with author replacing from and cc is captured",
-                "msg": self.ex_parsed_msg_single_auth_cc[0]
-            },
-            "test3": {
-                "comparison_type":"Test skips if object value doesn't exist",
-                "msg": [('To', 'ida.b.wells@gmail.com'),
-                         ('Subject', 'Voter Rights Act'),
-                         ('Date', ''),
-                         ('CC', ''),
-                        ('mailing_list', 'voter-bucket'),
-                        ('filename', '1999-04.mbox.gzip')]
-            }
-        }
-        want_json = {
-            "test1": {'refs': [{'ref': '<voting-rights-id@mail.gmail.com>'}],
-                    'raw_from_string': 'UK Parliment <uk.parliment@gmail.com>',
-                    'from_name': 'uk parliment',
-                    'from_email': 'uk.parliment@gmail.com',
-                    'raw_to_string': 'Emmeline Pankhurst <emmeline.pankhurst@gmail.com>',
-                    'to_name': 'emmeline pankhurst',
-                    'to_email': 'emmeline.pankhurst@gmail.com',
-                    'subject': 'Voting Rights',
-                    'raw_date_string': 'Mon, July 2 1928 13:46:03 +0100',
-                    'date': '1928-07-02 12:46:03',
-                    'content_type': 'text/plain; charset="utf-8"',
-                    'message_id': '<voting-rights-id@mail.gmail.com>',
-                    'body_text': 'Full women voting rights passed in U.K.\n\n"We are here, not because we are law-breakers; we are here in our efforts to become law-makers."',
-                    'raw_refs_string': '<voting-rights-id@mail.gmail.com>',
-                    'mailing_list': 'pankhurst-bucket',
-                      'filename': '1999-04.mbox.gzip',
-                      'time_stamp': 'AUTO',
-                    },
-            "test2": {'refs': [],
-                      'raw_from_string': 'US Congress <us.congress@gmail.com>',
-                      'from_name': 'us congress',
-                      'from_email': 'us.congress@gmail.com',
-                      'raw_to_string': 'ida.b.wells@gmail.com',
-                      'to_email': 'ida.b.wells@gmail.com',
-                      'raw_cc_string': 'Emmeline Pankhurst <emmeline.pankhurst@gmail.com>',
-                      'cc_name': 'emmeline pankhurst',
-                      'cc_email': 'emmeline.pankhurst@gmail.com',
-                      'subject': 'Voter Rights Act',
-                      'raw_date_string': 'Wed, Aug 6 1965 15:32:20 +0100',
-                      'date': '1965-08-06 14:32:20',
-                      'message_id': '<voter-rights-act-id@mail.gmail.com>',
-                      'body_text': 'Voter`s Rights Act outlawed discriminatory voting practices.\n\nFrom 1913 suffrage march in DC, "Either I go with you or not at all. I am not taking this stand because I personally wish for recognition. I am doing it for the future benefit of my whole race."',
-                      'mailing_list': 'voter-bucket',
-                      'filename': '1999-04.mbox.gzip',
-                      'time_stamp': 'AUTO',
-                      },
-            "test3":{'refs': [],
-                     'raw_to_string': 'ida.b.wells@gmail.com',
-                     'to_email': 'ida.b.wells@gmail.com',
-                     'subject': 'Voter Rights Act',
-                     'mailing_list': 'voter-bucket',
-                     'filename': '1999-04.mbox.gzip',
-            }
-        }
-        #
-        for key, test in msg_input.items():
-            # print(test['comparison_type'])
-            got_json = em.convert_msg_to_json(test["msg"])
-            self.assertEqual(want_json[key], got_json, "Convert message to json error")
 
     # TODO simulate load to BQ and test the components of this function esp errors
     def test_store_in_bigquery(self):

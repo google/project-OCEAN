@@ -1,4 +1,4 @@
-# Copyright 2020 Google Inc. All Rights Reserved.
+# Copyright 2021 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import argparse
-import base64
 from datetime import timezone
 import email
 import email.utils
@@ -25,7 +23,6 @@ import time
 import json
 
 from dateutil import parser
-import pytz
 
 from google.cloud import storage
 from google.cloud import bigquery
@@ -37,64 +34,19 @@ from google.api_core.exceptions import BadRequest
 ALLOWED_FIELDS = set(['from', 'subject', 'date', 'message_id', 'in_reply_to', 'references', 'body_text', 'body_html', 'body_image', 'mailing_list', 'to', 'cc', 'raw_date_string', 'log', 'content_type', 'filename', 'time_stamp', 'original_url', 'flagged_abuse'])
 IGNORED_FIELDS = set(['delivered_to', 'received', 'mime_version', 'content_transfer_encoding'])
 
-# Code to generate timezone map found at https://stackoverflow.com/questions/1703546/parsing-date-time-string-with-timezone-abbreviated-name-in-python/4766400#4766400
-def get_timezone_map():
-    tz_str = '''-12 Y
-    -11 X NUT SST
-    -10 W CKT HAST HST TAHT TKT
-    -9 V AKST GAMT GIT HADT HNY
-    -8 U AKDT CIST HAY HNP PST PT
-    -7 T HAP HNR MST PDT
-    -6 S CST EAST GALT HAR HNC MDT
-    -5 R CDT COT EASST ECT EST ET HAC HNE PET
-    -4 Q AST BOT CLT COST EDT FKT GYT HAE HNA PYT
-    -3 P ADT ART BRT CLST FKST GFT HAA PMST PYST SRT UYT WGT
-    -2 O BRST FNT PMDT UYST WGST
-    -1 N AZOT CVT EGT
-    0 Z EGST GMT UTC WET WT
-    1 A CET DFT WAT WEDT WEST
-    2 B CAT CEDT CEST EET SAST WAST
-    3 C EAT EEDT EEST IDT MSK
-    4 D AMT AZT GET GST KUYT MSD MUT RET SAMT SCT
-    5 E AMST AQTT AZST HMT MAWT MVT PKT TFT TJT TMT UZT YEKT
-    6 F ALMT BIOT BTT IOT KGT NOVT OMST YEKST
-    7 G CXT DAVT HOVT ICT KRAT NOVST OMSST THA WIB
-    8 H ACT AWST BDT BNT CAST HKT IRKT KRAST MYT PHT SGT ULAT WITA WST
-    9 I AWDT IRKST JST KST PWT TLT WDT WIT YAKT
-    10 K AEST ChST PGT VLAT YAKST YAPT
-    11 L AEDT LHDT MAGT NCT PONT SBT VLAST VUT
-    12 M ANAST ANAT FJT GILT MAGST MHT NZST PETST PETT TVT WFT
-    13 FJST NZDT
-    11.5 NFT
-    10.5 ACDT LHST
-    9.5 ACST
-    6.5 CCT MMT
-    5.75 NPT
-    5.5 SLT
-    4.5 AFT IRDT
-    3.5 IRST
-    -2.5 HAT NDT
-    -3.5 HNT NST NT
-    -4.5 HLV VET
-    -9.5 MART MIT'''
-    tzd = {}
-    for tz_descr in map(str.split, tz_str.split('\n')):
-        tz_offset = int(float(tz_descr[0]) * 3600)
-        for tz_code in tz_descr[1:]:
-            tzd[tz_code] = tz_offset
-    return tzd
+def get_filenames(storage_client, bucketname, filename=None, prefix=None):
+    # Get list of filenames
+    if filename:  # for testing: process just this file
+        if prefix:
+            return [prefix + "/" + filename]
+        else:
+            return [filename]
+    return list_bucket_filenames(storage_client, bucketname, prefix)
 
 def list_bucket_filenames(storage_client, bucketname, prefix):
     """Get gcs bucket filename list"""
-    blobs = storage_client.list_blobs(
-        bucketname, prefix=prefix, delimiter=None)
+    blobs = storage_client.list_blobs(bucketname, prefix=prefix, delimiter=None)
     return [blob.name for blob in blobs]
-
-def chunks(l, n):
-    """break a list into chunks"""
-    for i in range(0, len(l), n):
-        # Create an index range for l of n items:
-        yield l[i:i+n]
 
 # TODO is this needed: .encode('latin-1', errors='backslashreplace').decode('unicode-escape') as a way to convert special characters
 def decode_messsage(blob, additional_codecs=[]):
@@ -193,31 +145,6 @@ def get_msgs_from_gcs(storage_client, bucketname, filenamepath):
 
     return messages_list_result
 
-# TODO apply DLP to PII (email and names and any references that include email addresses) in: to, from, cc, in-reply-to, message-id, references
-def get_msg_objs_list(msgs, bucketname, filename):
-    """Parse the msg texts into a list of header items per msg and pull out body"""
-    msg_list = []
-
-    for msg in msgs:
-        if msg:  # then parse the message.
-            msg_parts = []
-            res = email.parser.Parser().parsestr(msg)
-            msg_parts.extend(res.items())
-            msg_parts.append(('mailing_list', bucketname))
-            msg_parts.append(('filename', filename))
-            if "abuse" in filename:
-                msg_parts.append(('flagged_abuse', True))
-            # Passing in time_stamp and AUTO to BQ generates an automatic timestamp for the row
-            msg_parts.append(('time_stamp', 'AUTO'))
-            # Capture original_url if it exists in message
-            if "original_url:" in msg:
-                val = re.split(r'original_url:', msg)
-                msg_parts.append(('original_url', val[1]))
-            msg_parts.extend(parse_body(res))
-            msg_list.append(msg_parts)
-
-    return msg_list
-
 def check_body_to(body_text):
     body_to = ""
     if body_text and re.search(r"^(.*?)wrote:", body_text):
@@ -257,6 +184,99 @@ def parse_body(msg_object):
         body_objects.append(('body_to', body_image))
 
     return body_objects
+
+# TODO apply DLP to PII (email and names and any references that include email addresses) in: to, from, cc, in-reply-to, message-id, references
+def get_msg_objs_list(msgs, bucketname, filenamepath):
+    """Parse the msg texts into a list of header items per msg and pull out body"""
+    msg_list = []
+
+    for msg in msgs:
+        if msg:  # then parse the message.
+            msg_parts = []
+            res = email.parser.Parser().parsestr(msg)
+            msg_parts.extend(res.items())
+            msg_parts.append(('mailing_list', bucketname))
+            msg_parts.append(('filename', filenamepath.split("/")[1]))
+            if "abuse" in filenamepath:
+                msg_parts.append(('flagged_abuse', True))
+            # Passing in time_stamp and AUTO to BQ generates an automatic timestamp for the row
+            msg_parts.append(('time_stamp', 'AUTO'))
+            # Capture original_url if it exists in message
+            if "original_url:" in msg:
+                val = re.split(r'original_url:', msg)
+                msg_parts.append(('original_url', val[1]))
+            msg_parts.extend(parse_body(res))
+            msg_list.append(msg_parts)
+
+    return msg_list
+
+def convert_msg_to_json(msg_objects):
+    """takes a list of message objects, and turns them into json dicts for insertion into BQ."""
+
+    json_result = {'refs':[]} # this repeated field is not nullable
+
+    msg_keys = {'date': parse_datestring, 'from': parse_contacts, 'to': parse_contacts, 'body_to': parse_contacts,'author': parse_contacts, 'cc': parse_contacts, 'references': parse_references}
+
+    for (obj_key, obj_val) in msg_objects:
+        # Parse fields identified as special
+        if obj_val:
+            if obj_key.lower() in msg_keys.keys():
+                json_format_message_part = msg_keys[obj_key.lower()]((obj_key, obj_val))
+            else:
+                # Parse the rest of the fields
+                json_format_message_part =  parse_everything_else((obj_key, obj_val))
+        else:
+            print("{} doesn't have a value from object: {}.".format(obj_key, msg_objects))
+        json_result.update(json_format_message_part)
+
+    return json_result
+
+# Code to generate timezone map found at https://stackoverflow.com/questions/1703546/parsing-date-time-string-with-timezone-abbreviated-name-in-python/4766400#4766400
+def get_timezone_map():
+    tz_str = '''-12 Y
+    -11 X NUT SST
+    -10 W CKT HAST HST TAHT TKT
+    -9 V AKST GAMT GIT HADT HNY
+    -8 U AKDT CIST HAY HNP PST PT
+    -7 T HAP HNR MST PDT
+    -6 S CST EAST GALT HAR HNC MDT
+    -5 R CDT COT EASST ECT EST ET HAC HNE PET
+    -4 Q AST BOT CLT COST EDT FKT GYT HAE HNA PYT
+    -3 P ADT ART BRT CLST FKST GFT HAA PMST PYST SRT UYT WGT
+    -2 O BRST FNT PMDT UYST WGST
+    -1 N AZOT CVT EGT
+    0 Z EGST GMT UTC WET WT
+    1 A CET DFT WAT WEDT WEST
+    2 B CAT CEDT CEST EET SAST WAST
+    3 C EAT EEDT EEST IDT MSK
+    4 D AMT AZT GET GST KUYT MSD MUT RET SAMT SCT
+    5 E AMST AQTT AZST HMT MAWT MVT PKT TFT TJT TMT UZT YEKT
+    6 F ALMT BIOT BTT IOT KGT NOVT OMST YEKST
+    7 G CXT DAVT HOVT ICT KRAT NOVST OMSST THA WIB
+    8 H ACT AWST BDT BNT CAST HKT IRKT KRAST MYT PHT SGT ULAT WITA WST
+    9 I AWDT IRKST JST KST PWT TLT WDT WIT YAKT
+    10 K AEST ChST PGT VLAT YAKST YAPT
+    11 L AEDT LHDT MAGT NCT PONT SBT VLAST VUT
+    12 M ANAST ANAT FJT GILT MAGST MHT NZST PETST PETT TVT WFT
+    13 FJST NZDT
+    11.5 NFT
+    10.5 ACDT LHST
+    9.5 ACST
+    6.5 CCT MMT
+    5.75 NPT
+    5.5 SLT
+    4.5 AFT IRDT
+    3.5 IRST
+    -2.5 HAT NDT
+    -3.5 HNT NST NT
+    -4.5 HLV VET
+    -9.5 MART MIT'''
+    tzd = {}
+    for tz_descr in map(str.split, tz_str.split('\n')):
+        tz_offset = int(float(tz_descr[0]) * 3600)
+        for tz_code in tz_descr[1:]:
+            tzd[tz_code] = tz_offset
+    return tzd
 
 # TODO: Python chat channel, confirmed this approach | alternative if/elif potential but need to confirm will not miss trying all options without throwing one exception that stops it
 def parse_datestring(datestring):
@@ -398,113 +418,73 @@ def parse_everything_else(ee_raw):
 
     return ee_objects
 
-def convert_msg_to_json(msg_objects):
-    """takes a list of message objects, and turns them into json dicts for insertion into BQ."""
+def chunks(json_rows, chunk_size):
+    """break a list into chunks"""
+    for indx in range(0, len(json_rows), chunk_size):
+        # Create an index range for json_rows of chunk size of items:
+        yield json_rows[indx:indx+chunk_size]
 
-    json_result = {'refs':[]} # this repeated field is not nullable
-
-    msg_keys = {'date': parse_datestring, 'from': parse_contacts, 'to': parse_contacts, 'body_to': parse_contacts,'author': parse_contacts, 'cc': parse_contacts, 'references': parse_references}
-
-    for (obj_key, obj_val) in msg_objects:
-        # Parse fields identified as special
-        if obj_val:
-            if obj_key.lower() in msg_keys.keys():
-                json_format_message_part = msg_keys[obj_key.lower()]((obj_key, obj_val))
-            else:
-                # Parse the rest of the fields
-                json_format_message_part =  parse_everything_else((obj_key, obj_val))
-        else:
-            print("{} doesn't have a value from object: {}.".format(obj_key, msg_objects))
-        json_result.update(json_format_message_part)
-
-    return json_result
-
-def store_in_bigquery(client, json_rows, table_id, chunk_size):
-    """Insert a list of message dicts into the given BQ table.  chunk_size determines how many
-    are loaded at once. (If the payload is too large, it will throw an error.)
+# TODO how to update and/or check for filename in table and insert if it doesn't exist...
+def store_in_bigquery(client, json_rows, table_id, schema, num_rows_loaded=0):
+    """Insert a list of message dicts into the given BQ table. If the payload is too large, it will throw an error.
     """
-    num_rows_loaded = 0
-    # Try to get the table and if it doesn't exist, create it using the json format
+
     try:
+        # Try to get the table and if it doesn't exist, create it using the json format
         table = client.get_table(table_id)
+        errors = client.insert_rows_json(table, json_rows)
+        if errors:
+            print("Loading messages rows did not load to BigQuery and threw this error: {}.".format(errors))
+        else:
+            num_rows_loaded += len(json_rows)
+            print("{} rows or less have been added without error.".format(num_rows_loaded))
     except NotFound:
-        with open("table_schema.json") as f:
+        with open(schema) as f:
             schema = json.load(f)
         table_framework = bigquery.Table(table_id, schema=schema)
         client.create_table(table_framework)
         table = client.get_table(table_id)
-
-    json_chunks = chunks(json_rows, chunk_size)
-    for json_row in json_chunks:
-        try:
-            errors = client.insert_rows_json(table, json_row)
-            if errors:
-                print("This json row did not load to BigQuery: {} and threw this error: {}.".format(json_row, errors))
-            else:
-                num_rows_loaded += chunk_size
-                print("{} rows or less have been added without error.".format(num_rows_loaded))
-        except BadRequest as err:
-            print("{} error thrown loading json_row to BigQuery. Trying to load again with reduced chunk size.".format(err))
-            reduce_chunk_size = int(chunk_size/2)
-            num_rows_loaded += store_in_bigquery(client, json_row, table_id, reduce_chunk_size)
+    except BadRequest:
+        print("{} error thrown loading json_row to BigQuery. Trying to load again with reduced chunk size.".format(Exception))
+        json_chunks = chunks(json_rows, len(json_rows)//2)
+        for json_chunk in json_chunks:
+            num_rows_loaded += store_in_bigquery(client, json_chunk, len(json_chunk), num_rows_loaded)
     return num_rows_loaded
 
-def get_filenames(storage_client, bucketname, filenames=None, prefix=None):
-    # Get list of filenames
-    if filenames:  # for testing: process just this file
-        if prefix:
-            return [prefix + "/" + name for name in filenames.split(" ")]
-        else:
-            return filenames.split(" ")
-    return list_bucket_filenames(storage_client, bucketname, prefix)
+def main(event, context):
+    projectid = os.environ.get("PROJECT_ID")
+    table_id = os.environ.get("TABLE_ID")
+    schema = "../table_schema.json"
 
-def get_table_id(projectid, tableid):
-    return "{}.{}".format(projectid, tableid)
+    bq_folders = {'angular': 'angular_mailinglist' , 'golang':'golang_mailinglist', 'nodejs': 'nodejs_mailinglist', 'python':'python_mailinglist'}
+    bucketname = event['bucket']
+    filepath = event['name'] # this is the Storage filename and use it for doc name
+    prefix, filename = filepath.split("/")
+    bq_prefix=prefix.split("-")[1]
 
-def main():
-    argparser = argparse.ArgumentParser(description='BQ message ingestion')
-    argparser.add_argument('--bucketname', help='GCS bucketname to pull data from', required=True)
-    argparser.add_argument('--tableid', help="Required BigQuery table id to store files into in the format `your-project.your_dataset.your_table`", required=True)
-    argparser.add_argument('--filename', help='Optional, pass in single filename esp for testing or multiple. If left off then it pulls all filenames in bucket')
-    # TODO use prefix to pull smaller groups of files if needed esp when running monthly
-    argparser.add_argument('--prefix', default=None, help='Optional, to filter subdirectories and filenames based on prefix.')
-    argparser.add_argument('--chunk_size', type=int, help='How many rows to load into BigQuery at a time.', default=200)
-    argparser.add_argument('--ingest', default=True, help='Run the ingestion to BQ', action='store_true')
-    argparser.add_argument('--no-ingest', dest='ingest', help='Do not run the ingestion to BQ. Esp for testing', action='store_false')
-    argparser.add_argument('--projectid', help='Project id')
-
-    args, unknown = argparser.parse_known_args()
-    if unknown:
-        print("Unknown argparser args: ", unknown)
-
-    tableid = get_table_id(args.projectid, args.tableid)
+    tableid = "{}.{}.{}".format(projectid, table_id, bq_folders[bq_prefix])
     print('----using table: {}----'.format(tableid))
 
     storage_client = storage.Client()
     bigquery_client = bigquery.Client()
 
-# TODO pull all below into script to test - note error if there is a space inn the filename that is entered - it is empty and creates an error on blob above
-    filenames = get_filenames(storage_client, args.bucketname, args.filename, args.prefix)
+    filenamepaths = get_filenames(storage_client, bucketname, filename, prefix)
 
-    for filename in filenames:
-        print('---------------')
-        location_name = args.prefix if args.prefix else args.bucketname
-        print('Working on file: {} from location: {}'.format(filename, location_name))
-
-        msgs_list = get_msgs_from_gcs(storage_client, args.bucketname, filename)
+    for filenamepath in filenamepaths:
+        print('Working on file: {}'.format(filenamepath))
+        msgs_list = get_msgs_from_gcs(storage_client, bucketname, filenamepath)
 
         if msgs_list:
-            msg_obj_list = get_msg_objs_list(msgs_list, args.bucketname, filename)
+            msg_obj_list = get_msg_objs_list(msgs_list, bucketname, filenamepath)
             json_result = []
             # Create list of json dicts from parsed msg info
             result = list(map(convert_msg_to_json,msg_obj_list))
             json_result.extend(result)
 
-            if args.ingest:
-                store_in_bigquery(bigquery_client, json_result, tableid, args.chunk_size)
+            store_in_bigquery(bigquery_client, json_result, tableid, schema)
 
         else:
-            print('*****No msgs obtained for {}'.format(filename))
+            print('*****No msgs obtained for {}'.format(filenamepath))
 
 if __name__ == "__main__":
     main()
