@@ -485,3 +485,6 @@ def main(event, context):
 
         else:
             print('*****No msgs obtained for {}'.format(filenamepath))
+
+if __name__ == "__main__":
+    main()

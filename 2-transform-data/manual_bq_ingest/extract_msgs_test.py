@@ -14,8 +14,6 @@
 
 
 import unittest
-import datetime
-from dateutil import parser
 import extract_msgs as em
 import email
 import mock

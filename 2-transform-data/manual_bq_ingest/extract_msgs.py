@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import argparse
-import base64
 from datetime import timezone
 import email
 import email.utils
@@ -25,7 +24,6 @@ import time
 import json
 
 from dateutil import parser
-import pytz
 
 from google.cloud import storage
 from google.cloud import bigquery

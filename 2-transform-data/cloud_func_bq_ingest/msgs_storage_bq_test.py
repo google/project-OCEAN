@@ -14,9 +14,7 @@
 
 
 import unittest
-import datetime
-from dateutil import parser
-import extract_msgs as em
+import msgs_storage_bq as msb
 import email
 import mock
 import gzip
@@ -234,13 +232,13 @@ original_url: https://en.wikipedia.org/wiki/Ida_B._Wells'''
 
         for key, test in encoded_input.items():
             # print(test['comparison_type'])
-            got_decode = em.decode_messsage(test["data"])
+            got_decode = msb.decode_messsage(test["data"])
             self.assertEqual(want_decode[key], got_decode, "Decode message error")
 
         #Test passing string error
         test5_input = "Hello New York"
         want_test5 = AttributeError
-        self.assertRaises(want_test5, em.decode_messsage, test5_input, "Error raising AttributeError in decode test.")
+        self.assertRaises(want_test5, msb.decode_messsage, test5_input, "Error raising AttributeError in decode test.")
 
     # TODO setup test
     def test_decompress_line_by_line(self):
@@ -356,7 +354,7 @@ original_url: https://en.wikipedia.org/wiki/Ida_B._Wells'''
 
         for key, test in input_gcs.items():
             # print(test['comparison_type'])
-            got_msg_list= em.get_msgs_from_gcs(test['client'], test['bucket_name'], test['filename'])
+            got_msg_list= msb.get_msgs_from_gcs(test['client'], test['bucket_name'], test['filename'])
             self.assertEqual(want_msg_list[key], got_msg_list, "Get msg from gcs error")
 
     def test_check_body_to(self):
@@ -388,7 +386,7 @@ original_url: https://en.wikipedia.org/wiki/Ida_B._Wells'''
         #
         for key, test in msg_input.items():
             # print(test['comparison_type'])
-            got_body = em.check_body_to(test["msg_obj"])
+            got_body = msb.check_body_to(test["msg_obj"])
             self.assertEqual(want_body[key], got_body, "Parse body error")
 
     def test_parse_body(self):
@@ -410,7 +408,7 @@ original_url: https://en.wikipedia.org/wiki/Ida_B._Wells'''
         #
         for key, test in msg_input.items():
             # print(test['comparison_type'])
-            got_body = em.parse_body(test["msg_obj"])
+            got_body = msb.parse_body(test["msg_obj"])
             self.assertEqual(want_body[key], got_body, "Parse body error")
 
     def test_get_msg_objs_list(self):
@@ -420,25 +418,25 @@ original_url: https://en.wikipedia.org/wiki/Ida_B._Wells'''
                 "comparison_type": "Test get message parts from single message",
                 "msgs": [self.ex_text_post_from_uk],
                 "bucketname":"pankhurst-bucket",
-                "filename":"1999-04.mbox.gzip"
+                "filenamepath":"mailstuff/1999-04.mbox.gzip"
             },
             "test2": {
                 "comparison_type": "Test get message parts from multiple messages",
                 "msgs":[self.ex_text_post_from_us1, self.ex_text_post_from_us2],
                 "bucketname": "voter-bucket",
-                "filename":"1999-04.txt"
+                "filenamepath":"mailstuff/1999-04.txt"
             },
             "test3": {
                 "comparison_type": "Test get url and abuse flag in messages",
                 "msgs":[self.ex_text_post_abuse],
                 "bucketname": "abuse-bucket",
-                "filename":"1881-01-abuse.txt"
+                "filenamepath":"mailstuff/1881-01-abuse.txt"
             },
             "test4": {
                 "comparison_type": "Test parse multipart message",
                 "msgs":[self.ex_text_multipart],
                 "bucketname": 'voter-rights-bucket',
-                "filename": '1965-08.txt.gz'
+                "filenamepath": 'mailstuff/1965-08.txt.gz'
             },
 
         }
@@ -452,7 +450,7 @@ original_url: https://en.wikipedia.org/wiki/Ida_B._Wells'''
         # TODO mock getting the body and skip that call?
         for key, test in msg_input.items():
             # print(test['comparison_type'])
-            got_msg_list = em.get_msg_objs_list(test["msgs"], test["bucketname"], test["filename"])
+            got_msg_list = msb.get_msg_objs_list(test["msgs"], test["bucketname"], test["filenamepath"])
             self.assertEqual(want_msg_list[key], got_msg_list, "Get msg objects error")
 
     # TODO test one email address, multiple, with or with or without names, with or without symbols
@@ -527,7 +525,7 @@ original_url: https://en.wikipedia.org/wiki/Ida_B._Wells'''
         #
         for key, test in msg_input.items():
             # print(test['comparison_type'])
-            got_json = em.convert_msg_to_json(test["msg"])
+            got_json = msb.convert_msg_to_json(test["msg"])
             self.assertEqual(want_json[key], got_json, "Convert message to json error")
 
 
@@ -594,7 +592,7 @@ original_url: https://en.wikipedia.org/wiki/Ida_B._Wells'''
 
         for key, test in date_input.items():
             # print(test['comparison_type'])
-            got_date = em.parse_datestring(test["input"])
+            got_date = msb.parse_datestring(test["input"])
             self.assertEqual(want_date[key], got_date, "Parse datestring error got.")
 
     def test_parse_contacts(self):
@@ -663,7 +661,7 @@ original_url: https://en.wikipedia.org/wiki/Ida_B._Wells'''
         #
         for key, test in msg_input.items():
             # print(test['comparison_type'])
-            got_msg_list = em.parse_contacts(test["msg_obj"])
+            got_msg_list = msb.parse_contacts(test["msg_obj"])
             self.assertEqual(want_msg_list[key], got_msg_list, "Parse contacts error")
 
     def test_parse_references(self):
@@ -684,7 +682,7 @@ original_url: https://en.wikipedia.org/wiki/Ida_B._Wells'''
         #
         for key, test in msg_input.items():
             # print(test['comparison_type'])
-            got_msg_list = em.parse_references(test["msg_obj"])
+            got_msg_list = msb.parse_references(test["msg_obj"])
             self.assertEqual(want_msg_list[key], got_msg_list, "Parse references error")
 
 # TODO test all pairs - not everything covered
@@ -727,7 +725,7 @@ original_url: https://en.wikipedia.org/wiki/Ida_B._Wells'''
 
         for key, test in msg_input.items():
             # print(test['comparison_type'])
-            got_msg_list = em.parse_everything_else(test["msg_obj"])
+            got_msg_list =msb.parse_everything_else(test["msg_obj"])
             self.assertEqual(want_msg_list[key], got_msg_list, "Parse everything else error")
 
     # TODO simulate load to BQ and test the components of this function esp errors
