@@ -428,7 +428,7 @@ def store_in_bigquery(client, json_rows, table_id, chunk_size):
     try:
         table = client.get_table(table_id)
     except NotFound:
-        with open("table_schema.json") as f:
+        with open("../table_schema.json") as f:
             schema = json.load(f)
         table_framework = bigquery.Table(table_id, schema=schema)
         client.create_table(table_framework)

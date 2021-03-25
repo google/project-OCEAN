@@ -49,6 +49,6 @@ As we add files to the archive buckets, we can use GCS notifications to trigger 
 
 [1]:	./issues_and_notes.md
 [2]:	./extract_msgs.py
-[3]:	./table_schema.json
-[4]:	./table_schema.json
+[3]:	../table_schema.json
+[4]:	../table_schema.json
 [5]:	https://cloud.google.com/bigquery/docs/partitioned-tables
