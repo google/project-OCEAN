@@ -73,6 +73,7 @@ func getData(ctx context.Context, storage gcs.Connection, httpToDom utils.HttpDo
 }
 
 func main() {
+	var err error
 	httpToDom := utils.DomResponse
 	flag.Parse()
 	fmt.Printf(*projectID)
@@ -83,7 +84,7 @@ func main() {
 	storageConn := gcs.StorageConnection{
 		ProjectID: *projectID,
 	}
-	if err := storageConn.ConnectClient(ctx); err != nil {
+	if err = storageConn.ConnectClient(ctx); err != nil {
 		log.Fatalf("Connect GCS failes: %v", err)
 	}
 
@@ -111,20 +112,29 @@ func main() {
 				groupName = strings.SplitN(subName, "-", 2)[1]
 
 				// TODO fix dates so they are start and end of month - put in utils
-				//Set start and end dates for mailman mailing list data
+
+				startDateResult, endDateResult := "", ""
+
 				if *allDateRun {
 					//Load all months
 					log.Printf("All Date Cloud Run")
-					*startDate = origStartDate
-					*endDate = time.Now().Format("2006-01-02")
+					//Set start and end dates with first mailing list date and current end date
+					if startDateResult, endDateResult, err = utils.FixEmptyDate(now, origStartDate, *endDate); err != nil {
+						log.Fatalf("Date error: %v", err)
+					}
 				} else {
-					//Load one month
+					//Set start and end dates split by one month
+					if startDateResult, endDateResult, err = utils.SplitDatesByMonth(now, *startDate, *endDate, 1); err != nil {
+						log.Fatalf("Date error: %v", err)
+					}
 					log.Printf("One Month Run All MailingLists")
-					*startDate = now.AddDate(0, -1, 0).Format("2006-01-02")
-					*endDate = now.Format("2006-01-02")
+					startDateString = currentDate.AddDate(0, -1, 0).Format("2006-01-02")
+					endDateString = currentDate.Format("2006-01-02")
 				}
+
+
 				//Get mailing list data and store
-				getData(ctx, &storageConn, httpToDom, *workerNum, *mailingList, groupName, *startDate, *endDate)
+				getData(ctx, &storageConn, httpToDom, *workerNum, *mailingList, groupName, startDateString, endDateString)
 			}
 		} else {
 			log.Printf("Build test run with mailman")
