@@ -207,7 +207,7 @@ func TestTopicIDToRawMsgUrlMap(t *testing.T) {
 			groupName:      "golang-checkins",
 			dom:            exTopicIdDomTime,
 			wantRawMsgURLMap: map[string][]string{
-				fmt.Sprintf("%4d-%2d.txt", timeYearCheck, timeMonthCheck): []string{"https://groups.google.com/forum/message/raw?msg=golang-checkins/8sv65_WCOS4/3Fc-diD_AwAJ"}},
+				fmt.Sprintf("%4d-%02d.txt", timeYearCheck, timeMonthCheck): []string{"https://groups.google.com/forum/message/raw?msg=golang-checkins/8sv65_WCOS4/3Fc-diD_AwAJ"}},
 			wantErr: nil,
 		},
 		{

@@ -117,6 +117,7 @@ func (gcs *StorageConnection) StoreContentInBucket(ctx context.Context, fileName
 		addName string
 	)
 
+
 	//TODO add more filename validation
 	if fileName == "" {
 		err = fmt.Errorf("%w", emptyFileNameErr)
@@ -132,7 +133,8 @@ func (gcs *StorageConnection) StoreContentInBucket(ctx context.Context, fileName
 	}
 
 	fileName = addBucketToFileName(fileName, addName)
-
+	log.Print("GCS FILENAME ", fileName)
+	// If fileName doesn't exist this will throw runtime error: invalid memory address or nil pointer dereference. calling the bucket.Object doesn't return errors.
 	obj := gcs.bucket.Object(fileName)
 
 	// w implements io.Writer.

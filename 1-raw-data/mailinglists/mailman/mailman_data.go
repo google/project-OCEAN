@@ -107,6 +107,7 @@ func GetMailmanData(ctx context.Context, storage gcs.Connection, groupName, star
 		startDateTime, endDateTime = breakDateByMonth(startDateTime, endDateTime)
 		filename = createMailmanFilename(startDateTime.String())
 		url = createMailmanURL(mailingListURL, filename, startDateTime.Format("2006-01-02"), endDateTime.Format("2006-01-02"))
+
 		if _, err = storage.StoreContentInBucket(ctx, filename, url, "url"); err != nil {
 			return fmt.Errorf("%w: %v", storageErr, err)
 		}
