@@ -70,9 +70,7 @@ import (
 	"github.com/google/project-OCEAN/1-raw-data/utils"
 )
 
-// TODO setup gobal errors to pass and test
 // TODO setup so can pull specific dates
-// TODO setup to better handle different http errors and capturing where it fails
 
 type urlResults struct {
 	urlMap map[string][]string
@@ -93,38 +91,41 @@ var (
 	storageErr       = errors.New("Storage failed")
 )
 
-// Create month year filename for topic list map
-func getFileName(matchDate string) (fileName string, err error) {
-	var tempDate time.Time
+// Convert date string to date time for file name
+func getFileDate(matchDate string) (fileDate time.Time, err error) {
 	dateSplit := strings.Split(matchDate, "/")
 	numDigMonthDay := fmt.Sprintf("%d%d", len(dateSplit[0]), len(dateSplit[1]))
 
 	// Convert string based on 1 or 2 digit month or day
 	switch numDigMonthDay {
 	case "11":
-		if tempDate, err = time.Parse("1/2/06", matchDate); err != nil {
+		if fileDate, err = time.Parse("1/2/06", matchDate); err != nil {
 			err = fmt.Errorf("%w single digits error: %v", dateTimeParseErr, err)
 		}
 	case "12":
-		if tempDate, err = time.Parse("1/02/06", matchDate); err != nil {
+		if fileDate, err = time.Parse("1/02/06", matchDate); err != nil {
 			err = fmt.Errorf("%w single month and double day digit error: %v", dateTimeParseErr, err)
 		}
 	case "21":
-		if tempDate, err = time.Parse("01/2/06", matchDate); err != nil {
+		if fileDate, err = time.Parse("01/2/06", matchDate); err != nil {
 			err = fmt.Errorf("%w double month and single day digiterror: %v", dateTimeParseErr, err)
 		}
 	case "22":
-		if tempDate, err = time.Parse("01/02/06", matchDate); err != nil {
+		if fileDate, err = time.Parse("01/02/06", matchDate); err != nil {
 			err = fmt.Errorf("%w double month and double day digit error: %v", dateTimeParseErr, err)
 		}
 	}
 	// Found error in time.Parse of 2 date year that applies 20 to anything below 69. At time of thos code, anything after 2020 is future
-	if tempDate.Year() > time.Now().Year() {
-		tempDate = tempDate.AddDate(-100, 0, 0)
+	if fileDate.Year() > time.Now().Year() {
+		fileDate = fileDate.AddDate(-100, 0, 0)
 	}
-
-	fileName = fmt.Sprintf("%04d-%02d.txt", tempDate.Year(), int(tempDate.Month()))
 	return
+}
+
+// Create month year filename for topic list map
+func getFileName(date time.Time) (fileName string) {
+	return fmt.Sprintf("%04d-%02d.txt", date.Year(), int(date.Month()))
+
 }
 
 // Get the total topics posted at the top of the list to track all are pulled
@@ -161,12 +162,15 @@ func getMsgIDsFromDom(org, topicId, groupName string, dom *goquery.Document) (ra
 	return
 }
 
-type TopicIDToRawMsgUrlMap func(string, string, *goquery.Document) (rawMsgUrlMap map[string][]string, err error)
+type TopicIDToRawMsgUrlMap func(string, string, time.Time, time.Time, *goquery.Document) (rawMsgUrlMap map[string][]string, err error)
 
 // Parse topic ids from dom, get message ids and create raw message url map by year-month filename
-func topicIDToRawMsgUrlMap(org, groupName string, topicDom *goquery.Document) (rawMsgUrlMap map[string][]string, err error) {
+func topicIDToRawMsgUrlMap(org, groupName string, startDateTime, endDateTime time.Time, topicDom *goquery.Document) (rawMsgUrlMap map[string][]string, err error) {
 
-	var msgDom *goquery.Document
+	var (
+		msgDom   *goquery.Document
+		fileDate time.Time
+	)
 
 	rawMsgUrlMap = make(map[string][]string)
 
@@ -212,12 +216,15 @@ func topicIDToRawMsgUrlMap(org, groupName string, topicDom *goquery.Document) (r
 				} else if regDate.MatchString(matchDate) {
 					dateToParse = matchDate
 				}
-				if fileName, err = getFileName(dateToParse); err != nil {
+				if fileDate, err = getFileDate(dateToParse); err != nil {
 					err = fmt.Errorf("%w error: %v", fileNameErr, err)
 					return
 				}
-				// Store the urls for the raw message content into a map grouped by year-month
-				rawMsgUrlMap[fileName] = append(rawMsgUrlMap[fileName], rawMsgURL)
+				if utils.InTimeSpan(fileDate, startDateTime, endDateTime) {
+					// Store the urls for the raw message content into a map grouped by year-month
+					fileName = getFileName(fileDate)
+					rawMsgUrlMap[fileName] = append(rawMsgUrlMap[fileName], rawMsgURL)
+				}
 			}
 		})
 	})
@@ -225,7 +232,7 @@ func topicIDToRawMsgUrlMap(org, groupName string, topicDom *goquery.Document) (r
 }
 
 // Worker converting list of topic id urls to dom objects and converting topic ids into the raw message urls
-func getRawMsgURLWorker(org, groupName string, httpToDom utils.HttpDomResponse, topictoMsgMap TopicIDToRawMsgUrlMap, topicURLJobs <-chan string, results chan<- urlResults) {
+func getRawMsgURLWorker(org, groupName string, startDateTime, endDateTime time.Time, httpToDom utils.HttpDomResponse, topictoMsgMap TopicIDToRawMsgUrlMap, topicURLJobs <-chan string, results chan<- urlResults) {
 	var (
 		topicDom                 *goquery.Document
 		topicResults, tmpResults map[string][]string
@@ -243,7 +250,7 @@ func getRawMsgURLWorker(org, groupName string, httpToDom utils.HttpDomResponse, 
 
 		// Get partial results with raw message urls grouped by year-month filename
 		// Output map includes all urls from that page which can be up to 100 values
-		if tmpResults, err = topictoMsgMap(org, groupName, topicDom); err != nil {
+		if tmpResults, err = topictoMsgMap(org, groupName, startDateTime, endDateTime, topicDom); err != nil {
 			results <- urlResults{err: fmt.Errorf("%w error: %v", rawMsgWorkerErr, err)}
 			return
 		}
@@ -260,7 +267,7 @@ func getRawMsgURLWorker(org, groupName string, httpToDom utils.HttpDomResponse, 
 }
 
 // Goroutine setup to get/consolidate list of raw message urls by year-month text filename for pages with lists of topic urls.
-func listRawMsgURLsByMonth(org, groupName string, worker int, httpToDom utils.HttpDomResponse, topicToMsgMap TopicIDToRawMsgUrlMap) (rawMsgUrlMap map[string][]string, err error) {
+func listRawMsgURLsByMonth(org, groupName string, startDateTime, endDateTime time.Time, worker int, httpToDom utils.HttpDomResponse, topicToMsgMap TopicIDToRawMsgUrlMap) (rawMsgUrlMap map[string][]string, err error) {
 	var (
 		urlTopicList                        string
 		pageIndex, countMsgs, totalMessages int
@@ -296,7 +303,7 @@ func listRawMsgURLsByMonth(org, groupName string, worker int, httpToDom utils.Ht
 	defer close(results)
 
 	for i := 0; i < worker; i++ {
-		go getRawMsgURLWorker(org, groupName, httpToDom, topicToMsgMap, topicURLJobs, results)
+		go getRawMsgURLWorker(org, groupName, startDateTime, endDateTime, httpToDom, topicToMsgMap, topicURLJobs, results)
 	}
 
 	// Loop over each page to pull all topic urls and setup jobs
@@ -404,19 +411,28 @@ func storeRawMsgByMonth(ctx context.Context, storage gcs.Connection, worker int,
 }
 
 // Main function to run the script
-func GetGoogleGroupsData(ctx context.Context, org, groupName string, storage gcs.Connection, workerNum int) (err error) {
+func GetGoogleGroupsData(ctx context.Context, org, groupName, startDateString, endDateString string, storage gcs.Connection, workerNum int) (err error) {
 
 	var (
-		messageURLResults map[string][]string
-		httpToDom         utils.HttpDomResponse
-		httpToString      utils.HttpStringResponse
-		topicToMsgMap     TopicIDToRawMsgUrlMap
+		messageURLResults          map[string][]string
+		httpToDom                  utils.HttpDomResponse
+		httpToString               utils.HttpStringResponse
+		topicToMsgMap              TopicIDToRawMsgUrlMap
+		startDateTime, endDateTime time.Time
 	)
 	httpToDom = utils.DomResponse
 	httpToString = utils.StringResponse
 	topicToMsgMap = topicIDToRawMsgUrlMap
 
-	if messageURLResults, err = listRawMsgURLsByMonth(org, groupName, workerNum, httpToDom, topicToMsgMap); err != nil {
+	// Setup start and end date times to limit what is loaded
+	if startDateTime, err = utils.GetDateTimeType(startDateString); err != nil {
+		return fmt.Errorf("start date: %v", err)
+	}
+	if endDateTime, err = utils.GetDateTimeType(endDateString); err != nil {
+		return fmt.Errorf("end date: %v", err)
+	}
+
+	if messageURLResults, err = listRawMsgURLsByMonth(org, groupName, startDateTime, endDateTime, workerNum, httpToDom, topicToMsgMap); err != nil {
 		return
 	}
 

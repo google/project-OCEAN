@@ -114,7 +114,7 @@ func addBucketToFileName(fileName, addName string) (newName string) {
 func (gcs *StorageConnection) StoreContentInBucket(ctx context.Context, fileName, content, source string) (testVerifyCopyCalled int64, err error) {
 	var (
 		response *http.Response
-		addName string
+		addName  string
 	)
 
 	//TODO add more filename validation
@@ -132,7 +132,8 @@ func (gcs *StorageConnection) StoreContentInBucket(ctx context.Context, fileName
 	}
 
 	fileName = addBucketToFileName(fileName, addName)
-
+	log.Print("GCS FILENAME ", fileName)
+	// If fileName doesn't exist this will throw runtime error: invalid memory address or nil pointer dereference. calling the bucket.Object doesn't return errors.
 	obj := gcs.bucket.Object(fileName)
 
 	// w implements io.Writer.

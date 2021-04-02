@@ -17,7 +17,9 @@ package utils
 import (
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
 )
@@ -25,6 +27,9 @@ import (
 var (
 	httpStrRespErr = fmt.Errorf("http string")
 	httpDomRespErr = fmt.Errorf("http dom")
+	dateFixErr     = fmt.Errorf("fix date")
+	dateParseErr   = fmt.Errorf("parse date")
+	splitMonthErr  = fmt.Errorf("split month")
 )
 
 // Func pointer to create HTTP response body and return as a string
@@ -77,5 +82,115 @@ func DomResponse(url string) (dom *goquery.Document, err error) {
 		err = fmt.Errorf("%w goquery dom conversion returned an error: %v", httpDomRespErr, err)
 		return
 	}
+	return
+}
+
+// Convert date string to time type
+func GetDateTimeType(dateString string) (dateTime time.Time, err error) {
+	if dateTime, err = time.Parse("2006-01-02", dateString); err != nil {
+		err = fmt.Errorf("%w: %v", dateParseErr, err)
+	}
+	return
+}
+
+// Verify a date is in between a timespan
+func InTimeSpan(fileDate, startDateTime, endDateTime time.Time) (load bool) {
+	return (fileDate.After(startDateTime) || fileDate == startDateTime) && (fileDate.Before(endDateTime) || fileDate == endDateTime)
+}
+
+//Define and return start and end date strings for mailing list data load
+func FixDate(startDate, endDate string) (startDateResult, endDateResult string, err error) {
+	var startDateTime, endDateTime time.Time
+	currentDate := time.Now()
+
+	//If empty start date, make it the current date minus 1 day so it doesn't equal end date
+	if startDate == "" {
+		startDateTime = currentDate.AddDate(0, 0, -1)
+		startDateResult = startDateTime.Format("2006-01-02")
+		log.Printf("Start date empty. It was set to 1 day before the current date.")
+	} else {
+		//Get start date as time type to compare to end date
+		if startDateTime, err = GetDateTimeType(startDate); err != nil {
+			err = fmt.Errorf("start date: %v", err)
+		}
+		// Reformat incase malformed date string provided
+		startDateResult = startDateTime.Format("2006-01-02")
+	}
+
+	//If empty end date or its a time before now reset to current date
+	if endDate == "" || endDate > currentDate.Format("2006-01-02") {
+		endDateTime = currentDate
+		endDateResult = endDateTime.Format("2006-01-02")
+		log.Printf("End date empty. It was set to current date")
+	} else {
+		//Get end date as time type to compare to end date
+		if endDateTime, err = GetDateTimeType(endDate); err != nil {
+			err = fmt.Errorf("end date: %v", err)
+		}
+		// Reformat incase malformed date string provided
+		endDateResult = endDateTime.Format("2006-01-02")
+	}
+
+	if startDateTime.After(endDateTime) {
+		err = fmt.Errorf("%w start date %v was past end date %v. Update input with different start date.", dateFixErr, startDate, endDate)
+	}
+
+	// Return start dates and end date strings passed in that aren't empty and start is before end
+	return
+}
+
+// Change date to the 1st of the month
+func ChangeFirstMonth(dateTime time.Time) (dateTimeResult time.Time) {
+	if dateTime.Day() > 1 {
+		dateTimeResult = dateTime.AddDate(0, 0, -dateTime.Day()+1)
+	} else {
+		dateTimeResult = dateTime
+	}
+	return
+}
+
+// Create month span dates so start must be 1st and end must be 1st of the following month unless today.
+func SplitDatesByMonth(startDate, endDate string, numMonths int) (startDateResult, endDateResult string, err error) {
+	var startDateTime, endDateTime time.Time
+	currentDate := time.Now()
+
+	if startDate == "" || endDate == "" {
+		if startDateResult, endDateResult, err = FixDate(startDate, endDate); err != nil {
+			err = fmt.Errorf("%w make sure start date %v and end date %v are not empty and resubmit.", splitMonthErr, startDate, endDate)
+		}
+	}
+
+	//Get start date as time type
+	if startDateTime, err = GetDateTimeType(startDate); err != nil {
+		err = fmt.Errorf("start date: %v", err)
+	}
+	// Change start date to the 1st of the month
+	startDateTime = ChangeFirstMonth(startDateTime)
+
+	//Get end date as time type
+	if endDateTime, err = GetDateTimeType(endDate); err != nil {
+		err = fmt.Errorf("end date: %v", err)
+	}
+
+	if endDateTime.After(currentDate) {
+		//Set end date to current date if end date is after current date
+		endDateTime = currentDate
+	} else if endDateTime.Day() > 1 && currentDate.After(endDateTime) {
+		//If end date past the first of the month and not in current month, set to the start of next month.
+		endDateTime = endDateTime.AddDate(0, 1, 0)
+	}
+	// Change start date to the 1st of the month
+	endDateTime = ChangeFirstMonth(endDateTime)
+
+	// Check that start and end are separated by number of months and adjust if needed assuming end date as origin to compare to
+	if int(endDateTime.Month()-startDateTime.Month()) != numMonths {
+		log.Printf("End dates is set to the first date of the following month if there is a following month and end date day is past the 1st. Start date adjusted from end date to create number of months captured. If you want different dates, enter an end date close to what you are targeting.")
+
+		startDateTime = endDateTime.AddDate(0, -numMonths, 0)
+	}
+
+	startDateResult = startDateTime.Format("2006-01-02")
+	endDateResult = endDateTime.Format("2006-01-02")
+
 	return
 }
