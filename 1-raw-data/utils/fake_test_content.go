@@ -46,7 +46,7 @@ func (gcs *FakeStorageConnection) StoreContentInBucket(ctx context.Context, file
 	if strings.Contains(content, "Leaf") {
 		return
 	} else if strings.Contains(content, "Susan") {
-		err = fmt.Errorf("%w", err)
+		err = fmt.Errorf("%s", "Susan")
 		return
 	} else if strings.Contains(content, "missing") {
 		err = fmt.Errorf("Pipermail storage error")

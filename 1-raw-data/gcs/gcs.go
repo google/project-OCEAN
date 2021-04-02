@@ -114,9 +114,8 @@ func addBucketToFileName(fileName, addName string) (newName string) {
 func (gcs *StorageConnection) StoreContentInBucket(ctx context.Context, fileName, content, source string) (testVerifyCopyCalled int64, err error) {
 	var (
 		response *http.Response
-		addName string
+		addName  string
 	)
-
 
 	//TODO add more filename validation
 	if fileName == "" {
