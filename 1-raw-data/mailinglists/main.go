@@ -55,7 +55,7 @@ func getData(ctx context.Context, storage gcs.Connection, httpToDom utils.HttpDo
 	switch mailingList {
 	//TODO add start and end dates to pipermail
 	case "pipermail":
-		if err := pipermail.GetPipermailData(ctx, storage, groupName, httpToDom); err != nil {
+		if err := pipermail.GetPipermailData(ctx, storage, groupName, startDateString, endDateString, httpToDom); err != nil {
 			log.Fatalf("Mailman load failed: %v", err)
 		}
 	case "mailman":
@@ -64,7 +64,7 @@ func getData(ctx context.Context, storage gcs.Connection, httpToDom utils.HttpDo
 		}
 		//TODO add start and end dates to google groups
 	case "gg":
-		if err := googlegroups.GetGoogleGroupsData(ctx, "", groupName, storage, workerNum); err != nil {
+		if err := googlegroups.GetGoogleGroupsData(ctx, "", groupName, startDateString, endDateString, storage, workerNum); err != nil {
 			log.Fatalf("GoogleGroups load failed: %v", err)
 		}
 	default:

@@ -34,7 +34,7 @@ import (
 )
 
 var (
-	storageErr       = errors.New("Storage failed")
+	storageErr = errors.New("Storage failed")
 )
 
 // Create filename to save Mailman data.

@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/google/project-OCEAN/1-raw-data/gcs"
@@ -48,8 +49,8 @@ func (gcs *FakeStorageConnection) StoreContentInBucket(ctx context.Context, file
 	} else if strings.Contains(content, "Susan") {
 		err = fmt.Errorf("%s", "Susan")
 		return
-	} else if strings.Contains(content, "missing") {
-		err = fmt.Errorf("Pipermail storage error")
+	} else if strings.Contains(content, "space") {
+		err = fmt.Errorf("%s", "Storage")
 		return
 	}
 	return
@@ -132,15 +133,15 @@ func FakeHttpDomResponse(url string) (dom *goquery.Document, err error) {
 		exDomResponse = `
 			<html>
 			<table>
-			<tr><td><a href="woman-chief.gz"</a></td></tr>
+			<tr><td><a href="1851-October-woman-chief.gz"</a></td></tr>
 			</table>
 			</html>
     `
-	case "https://mail.python.org/pipermail/Missing/":
+	case "https://mail.python.org/pipermail/Space/":
 		exDomResponse = `
 			<html>
 			<table>
-			<tr><td><a href="missing-chief.gz"</a></td></tr>
+			<tr><td><a href="1963-June-space.gz"</a></td></tr>
 			</table>
 			</html>
     `
@@ -149,7 +150,7 @@ func FakeHttpDomResponse(url string) (dom *goquery.Document, err error) {
 }
 
 // Mock creating raw message url map from topic ids for tests on Google Groups mailing list load
-func FakeTopicIDToRawMsgUrlMap(org, groupName string, dom *goquery.Document) (rawMsgUrlMap map[string][]string, err error) {
+func FakeTopicIDToRawMsgUrlMap(org, groupName string, startDateTime, endDateTime time.Time, dom *goquery.Document) (rawMsgUrlMap map[string][]string, err error) {
 	switch groupName {
 	case "totalTopicsLess":
 		rawMsgUrlMap = map[string][]string{"1893-01.txt": []string{"https://en.wikipedia.org/wiki/Lili%CA%BBuokalani"}}

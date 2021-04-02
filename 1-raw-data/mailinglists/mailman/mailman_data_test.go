@@ -114,7 +114,7 @@ func TestGetMailmanData(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.comparisonType, func(t *testing.T) {
 			if gotErr := GetMailmanData(ctx, storage, test.groupName, test.startDate, test.endDate, test.numMonths); !errors.Is(gotErr, test.wantErr) {
-				if !strings.Contains(gotErr.Error(), test.wantErr.Error()) {
+				if gotErr == nil || !strings.Contains(gotErr.Error(), test.wantErr.Error()) {
 					t.Errorf("Error doesn't match.\n got: %v\nwant it to contain: %v", gotErr, test.wantErr)
 				}
 			}

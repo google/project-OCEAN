@@ -21,12 +21,12 @@ package pipermail
 //TODO
 // Add test of the specific page format expected and how to parse it
 // Check the most recent file stored and pull only what isn't there
-// Run this monthly at start of new month to pull all new data
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -36,28 +36,36 @@ import (
 )
 
 var (
-	storageErr = errors.New("Storage failed")
+	StorageErr = errors.New("Storage failed")
 )
 
-func changeMonthToDigit(fileName string) (newName string) {
+func changeMonthToDigit(fileName string) (newName string, fileDate time.Time) {
 	fileNameParts := strings.SplitN(fileName, ".", 2)
 	fileNameDateParts := strings.Split(fileNameParts[0], "-")
 	year, month := fileNameDateParts[0], fileNameDateParts[1]
-	formatedDateTime, _ := time.Parse("2006-January-02", fmt.Sprintf("%s-%s-02", year, month))
-	return fmt.Sprintf("%s-%02d.%s", year, int(formatedDateTime.Month()), fileNameParts[1])
+	fileDate, _ = time.Parse("2006-January-02", fmt.Sprintf("%s-%s-01", year, month))
+	newName = fmt.Sprintf("%s-%02d.%s", year, int(fileDate.Month()), fileNameParts[1])
+	return
 }
 
 // Get, parse and store Pipermail data in GCS.
-func GetPipermailData(ctx context.Context, storage gcs.Connection, groupName string, httpToDom utils.HttpDomResponse) (storeErr error) {
+func GetPipermailData(ctx context.Context, storage gcs.Connection, groupName, startDateString, endDateString string, httpToDom utils.HttpDomResponse) (storeErr error) {
 	mailingListURL := fmt.Sprintf("https://mail.python.org/pipermail/%s/", groupName)
 
 	var (
-		dom *goquery.Document
-		err error
+		dom                        *goquery.Document
+		err                        error
+		startDateTime, endDateTime time.Time
 	)
 
 	if dom, err = httpToDom(mailingListURL); err != nil {
 		return fmt.Errorf("HTTP dom error: %v", err)
+	}
+	if startDateTime, err = utils.GetDateTimeType(startDateString); err != nil {
+		return fmt.Errorf("start date: %v", err)
+	}
+	if endDateTime, err = utils.GetDateTimeType(endDateString); err != nil {
+		return fmt.Errorf("end date: %v", err)
 	}
 
 	dom.Find("tr").Find("td").Find("a").Each(func(i int, s *goquery.Selection) {
@@ -68,11 +76,16 @@ func GetPipermailData(ctx context.Context, storage gcs.Connection, groupName str
 			if check[len] == "gz" {
 				if strings.Split(filename, ":")[0] != "https" {
 					url := fmt.Sprintf("%v%v", mailingListURL, filename)
-					revisedFileName := changeMonthToDigit(filename)
-					if _, err = storage.StoreContentInBucket(ctx, revisedFileName, url, "url"); err != nil {
-						// Each func interface doesn't allow passing errors?
-						storeErr = fmt.Errorf("%w: %v", storageErr, err)
+					revisedFileName, fileDate := changeMonthToDigit(filename)
+					if utils.InTimeSpan(fileDate, startDateTime, endDateTime) {
+						if _, err = storage.StoreContentInBucket(ctx, revisedFileName, url, "url"); err != nil {
+							// Each func interface doesn't allow passing errors?
+							storeErr = fmt.Errorf("%w: %v", StorageErr, err)
+						}
+					} else {
+						log.Printf("File %s not stored because date %s outside timespan %s - %s", filename, fileDate, startDateString, endDateString)
 					}
+
 				}
 			}
 		}

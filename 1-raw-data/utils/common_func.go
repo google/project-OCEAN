@@ -85,11 +85,17 @@ func DomResponse(url string) (dom *goquery.Document, err error) {
 	return
 }
 
+// Convert date string to time type
 func GetDateTimeType(dateString string) (dateTime time.Time, err error) {
 	if dateTime, err = time.Parse("2006-01-02", dateString); err != nil {
 		err = fmt.Errorf("%w: %v", dateParseErr, err)
 	}
 	return
+}
+
+// Verify a date is in between a timespan
+func InTimeSpan(fileDate, startDateTime, endDateTime time.Time) (load bool) {
+	return (fileDate.After(startDateTime) || fileDate == startDateTime) && (fileDate.Before(endDateTime) || fileDate == endDateTime)
 }
 
 //Define and return start and end date strings for mailing list data load
