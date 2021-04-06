@@ -12,13 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 steps:
-# Initial exploration esp with variables
+# All list and partial dates run
 - name: 'ubuntu'
   env:
     - 'PROJECT_ID=$PROJECT_ID'
 - name: golang
-  args: ['go', 'run', '1-raw-data/mailinglists/main.go', '-build-list-run', '-all-list-run', 'start-date=2021-01-01', 'end-date=2021-01-31', '-project-id=$PROJECT_ID']
+  args: ['go', 'run', '1-raw-data/mailinglists/main.go', '-build-list-run', '-all-list-run', '-start-date=2021-01-01', '-end-date=2021-01-31', '-project-id=$PROJECT_ID']
+
 
 #Test Run
 #- name: golang

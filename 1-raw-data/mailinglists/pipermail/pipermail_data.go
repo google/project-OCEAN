@@ -51,6 +51,7 @@ func changeMonthToDigit(fileName string) (newName string, fileDate time.Time) {
 // Get, parse and store Pipermail data in GCS.
 func GetPipermailData(ctx context.Context, storage gcs.Connection, groupName, startDateString, endDateString string, httpToDom utils.HttpDomResponse) (storeErr error) {
 	mailingListURL := fmt.Sprintf("https://mail.python.org/pipermail/%s/", groupName)
+	log.Printf("PIPERMAIL loading")
 
 	var (
 		dom                        *goquery.Document
@@ -82,10 +83,7 @@ func GetPipermailData(ctx context.Context, storage gcs.Connection, groupName, st
 							// Each func interface doesn't allow passing errors?
 							storeErr = fmt.Errorf("%w: %v", StorageErr, err)
 						}
-					} else {
-						log.Printf("File %s not stored because date %s outside timespan %s - %s", filename, fileDate, startDateString, endDateString)
 					}
-
 				}
 			}
 		}

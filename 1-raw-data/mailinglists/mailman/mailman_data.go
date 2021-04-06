@@ -62,7 +62,7 @@ func GetMailmanData(ctx context.Context, storage gcs.Connection, groupName, star
 
 	orgEndDate := endDateResult
 
-	// If the date range is larger than one month, cycle and capture content by month
+	// Cycle and capture content by month
 	for startDateResult <= orgEndDate {
 		// Break dates out to span only a month, start must be 1st and end must be 1st of the following month unless today
 		if startDateResult, endDateResult, err = utils.SplitDatesByMonth(startDateResult, endDateResult, numMonths); err != nil {
@@ -77,8 +77,10 @@ func GetMailmanData(ctx context.Context, storage gcs.Connection, groupName, star
 
 		startDateTime, _ = utils.GetDateTimeType(startDateResult)
 		startDateResult = startDateTime.AddDate(0, 1, 0).Format("2006-01-02")
+		//startDateResult = utils.AddMonth(startDateTime).Format("2006-01-02")
 		endDateTime, _ = utils.GetDateTimeType(endDateResult)
 		endDateResult = endDateTime.AddDate(0, 1, 0).Format("2006-01-02")
+		print("MAILMAN", startDateResult, endDateResult)
 	}
 
 	if endDateResult < orgEndDate {

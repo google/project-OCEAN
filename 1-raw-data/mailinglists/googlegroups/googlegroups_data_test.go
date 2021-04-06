@@ -61,7 +61,7 @@ func TestHttpStringResponse(t *testing.T) {
 func TestGetFileDate(t *testing.T) {
 	var (
 		gotDate time.Time
-		gotErr error
+		gotErr  error
 	)
 
 	wantDateKeyOneTwo, _ := utils.GetDateTimeType("1991-01-29")
@@ -72,7 +72,7 @@ func TestGetFileDate(t *testing.T) {
 	tests := []struct {
 		comparisonType string
 		matchDate      string
-		wantFileDate  time.Time
+		wantFileDate   time.Time
 		wantErr        error
 	}{
 		{
@@ -244,9 +244,9 @@ func TestTopicIDToRawMsgUrlMap(t *testing.T) {
 	exTopicIdDomDate, _ := utils.FakeHttpDomResponse("topicIDToRawMsgUrlMapDate")
 	exAbuseHiddenMsg, _ := utils.FakeHttpDomResponse("abuseHiddenMsg")
 	startDateTimeIdsTime, _ := utils.GetDateTimeType(now.Format("2006-01-02"))
-	endDateTimeIdsTime , _ := utils.GetDateTimeType(now.Format("2006-01-02"))
+	endDateTimeIdsTime, _ := utils.GetDateTimeType(now.Format("2006-01-02"))
 	startDateTimeIdsDate, _ := utils.GetDateTimeType("2018-09-01")
-	endDateTimeIdsDate , _ := utils.GetDateTimeType("2018-09-30")
+	endDateTimeIdsDate, _ := utils.GetDateTimeType("2018-09-30")
 
 	var (
 		gotRawMsgURLMap map[string][]string
@@ -256,8 +256,8 @@ func TestTopicIDToRawMsgUrlMap(t *testing.T) {
 		comparisonType   string
 		org              string
 		groupName        string
-		startDateTime time.Time
-		endDateTime time.Time
+		startDateTime    time.Time
+		endDateTime      time.Time
 		dom              *goquery.Document
 		wantRawMsgURLMap map[string][]string
 		wantErr          error
@@ -266,8 +266,8 @@ func TestTopicIDToRawMsgUrlMap(t *testing.T) {
 			comparisonType: "Pull topic ids for time",
 			org:            "",
 			groupName:      "golang-checkins",
-			startDateTime: startDateTimeIdsTime,
-			endDateTime: endDateTimeIdsTime,
+			startDateTime:  startDateTimeIdsTime,
+			endDateTime:    endDateTimeIdsTime,
 			dom:            exTopicIdDomTime,
 			wantRawMsgURLMap: map[string][]string{
 				fmt.Sprintf("%4d-%02d.txt", timeYearCheck, timeMonthCheck): []string{"https://groups.google.com/forum/message/raw?msg=golang-checkins/8sv65_WCOS4/3Fc-diD_AwAJ"}},
@@ -277,8 +277,8 @@ func TestTopicIDToRawMsgUrlMap(t *testing.T) {
 			comparisonType: "Pull topic ids for date",
 			org:            "",
 			groupName:      "golang-checkins",
-			startDateTime: startDateTimeIdsDate,
-			endDateTime: endDateTimeIdsDate,
+			startDateTime:  startDateTimeIdsDate,
+			endDateTime:    endDateTimeIdsDate,
 			dom:            exTopicIdDomDate,
 			wantRawMsgURLMap: map[string][]string{
 				"2018-09.txt": []string{"https://groups.google.com/forum/message/raw?msg=golang-checkins/8sv65_WCOS4/3Fc-diD_AwAJ"}},
@@ -308,7 +308,7 @@ func TestTopicIDToRawMsgUrlMap(t *testing.T) {
 
 // TODO verify the temp map is needed
 func TestGetRawMsgURLWorker(t *testing.T) {
-	var 		startDateTime, endDateTime time.Time
+	var startDateTime, endDateTime time.Time
 
 	tests := []struct {
 		comparisonType string
@@ -351,7 +351,7 @@ func TestGetRawMsgURLWorker(t *testing.T) {
 }
 
 func TestListRawMsgURLsByMonth(t *testing.T) {
-	var 		startDateTime, endDateTime time.Time
+	var startDateTime, endDateTime time.Time
 	rawMsg100 := map[string][]string{"1893-01.txt": []string{"https://en.wikipedia.org/wiki/Lili%CA%BBuokalani"}}
 	for i := 0; i < 100; i++ {
 		rawMsg100["1893-01.txt"] = append(rawMsg100["1893-01.txt"], "https://en.wikipedia.org/wiki/Lili%CA%BBuokalani")
@@ -369,6 +369,7 @@ func TestListRawMsgURLsByMonth(t *testing.T) {
 		worker           int
 		httpToDom        utils.HttpDomResponse
 		topicToMsgMap    TopicIDToRawMsgUrlMap
+		allDateRun       bool
 		wantRawMsgURLMap map[string][]string
 		wantErr          error
 	}{
@@ -379,6 +380,7 @@ func TestListRawMsgURLsByMonth(t *testing.T) {
 			worker:           1,
 			httpToDom:        utils.FakeHttpDomResponse,
 			topicToMsgMap:    utils.FakeTopicIDToRawMsgUrlMap,
+			allDateRun:       true,
 			wantRawMsgURLMap: rawMsg100,
 			wantErr:          nil,
 		},
@@ -389,13 +391,14 @@ func TestListRawMsgURLsByMonth(t *testing.T) {
 			worker:           1,
 			httpToDom:        utils.FakeHttpDomResponse,
 			topicToMsgMap:    utils.FakeTopicIDToRawMsgUrlMap,
+			allDateRun:       true,
 			wantRawMsgURLMap: map[string][]string{"1893-01.txt": []string{"https://en.wikipedia.org/wiki/Lili%CA%BBuokalani"}},
 			wantErr:          nil,
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.comparisonType, func(t *testing.T) {
-			if gotRawMsgURLMap, gotErr = listRawMsgURLsByMonth(test.org, test.groupName, startDateTime, endDateTime , test.worker, test.httpToDom, test.topicToMsgMap); !errors.Is(gotErr, test.wantErr) {
+			if gotRawMsgURLMap, gotErr = listRawMsgURLsByMonth(test.org, test.groupName, startDateTime, endDateTime, test.worker, test.httpToDom, test.topicToMsgMap, test.allDateRun); !errors.Is(gotErr, test.wantErr) {
 				t.Errorf("Error response does not match.\n got: %v\nwant: %v", gotErr, test.wantErr)
 			}
 			if !reflect.DeepEqual(gotRawMsgURLMap, test.wantRawMsgURLMap) {
