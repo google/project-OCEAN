@@ -21,7 +21,6 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"log"
 	"strings"
 	"time"
@@ -47,24 +46,22 @@ var (
 	groupNames   = flag.String("groupname", "", "Mailing list group name. Enter 1 or more and use spaces to identify. CAUTION also enter the buckets to load to in the same order.")
 	startDate    = flag.String("start-date", "", "Start date in format of year-month-date and 4dig-2dig-2dig.")
 	endDate      = flag.String("end-date", "", "End date in format of year-month-date and 4dig-2dig-2dig.")
-	workerNum    = flag.Int("workers", 1, "Number of workers to use for goroutines.")
+	workerNum    = flag.Int("workers", 20, "Number of workers to use for goroutines.")
 	subNames     []string
 )
 
-func getData(ctx context.Context, storage gcs.Connection, httpToDom utils.HttpDomResponse, workerNum, numMonths int, mailingList, groupName, startDateString, endDateString string) {
+func getData(ctx context.Context, storage gcs.Connection, httpToDom utils.HttpDomResponse, workerNum, numMonths int, mailingList, groupName, startDateString, endDateString string, allDateRun bool) {
 	switch mailingList {
-	//TODO add start and end dates to pipermail
 	case "pipermail":
 		if err := pipermail.GetPipermailData(ctx, storage, groupName, startDateString, endDateString, httpToDom); err != nil {
-			log.Fatalf("Mailman load failed: %v", err)
+			log.Fatalf("Pipermail load failed: %v", err)
 		}
 	case "mailman":
 		if err := mailman.GetMailmanData(ctx, storage, groupName, startDateString, endDateString, numMonths); err != nil {
 			log.Fatalf("Mailman load failed: %v", err)
 		}
-		//TODO add start and end dates to google groups
 	case "gg":
-		if err := googlegroups.GetGoogleGroupsData(ctx, "", groupName, startDateString, endDateString, storage, workerNum); err != nil {
+		if err := googlegroups.GetGoogleGroupsData(ctx, "", groupName, startDateString, endDateString, storage, workerNum, allDateRun); err != nil {
 			log.Fatalf("GoogleGroups load failed: %v", err)
 		}
 	default:
@@ -77,7 +74,7 @@ func main() {
 	numMonths := 1
 	httpToDom := utils.DomResponse
 	flag.Parse()
-	fmt.Printf(*projectID)
+	//log.Printf("PROJECTID", *projectID)
 
 	//Setup Storage connection
 	ctx, cancel := context.WithCancel(context.Background())
@@ -105,7 +102,7 @@ func main() {
 		// Run Build to load all mailing lists
 		if *allListRun {
 			log.Printf("Build all lists ")
-			mailListMap := map[string]string{"gg-angular": "2009-09-01", "gg-golang-announce": "2011-05-01", "gg-golang-checkins": "2009-11-01", " gg-golang-codereviews": "2013-12-01", "gg-golang-dev": "2009-11-01", "gg-golang-nuts": "2009-11-01", "gg-nodejs": "2009-06-01", "mailman-python-announce-list": "1999-04-01", "mailman-python-dev": "1999-04-01", "mailman-python-ideas": "2006-12-01", "pipermail-python-announce-list": "1999-04-01", "pipermail-python-dev": "1995-03-01", "pipermail-python-ideas": "2006-12-01", "pipermail-python-list": "1999-02-01"}
+			mailListMap := map[string]string{"gg-angular": "2009-09-01", "gg-golang-announce": "2011-05-01", "gg-golang-checkins": "2009-11-01", "gg-golang-codereviews": "2013-12-01", "gg-golang-dev": "2009-11-01", "gg-golang-nuts": "2009-11-01", "gg-nodejs": "2009-06-01", "mailman-python-announce-list": "1999-04-01", "mailman-python-dev": "1999-04-01", "mailman-python-ideas": "2006-12-01", "pipermail-python-announce-list": "1999-04-01", "pipermail-python-dev": "1995-03-01", "pipermail-python-ideas": "2006-12-01", "pipermail-python-list": "1999-02-01"}
 
 			for subName, origStartDate := range mailListMap {
 				startDateResult, endDateResult := "", ""
@@ -125,13 +122,16 @@ func main() {
 					if startDateResult, endDateResult, err = utils.SplitDatesByMonth(*startDate, *endDate, 1); err != nil {
 						log.Fatalf("Date error: %v", err)
 					}
-					log.Printf("One Month Run All MailingLists")
-					startDateResult = now.AddDate(0, -1, 0).Format("2006-01-02")
-					endDateResult = now.Format("2006-01-02")
+					//log.Printf("One Month Run All MailingLists")
+					//startDateResult = now.AddDate(0, -1, 0).Format("2006-01-02")
+					//endDateResult = now.Format("2006-01-02")
 				}
+				log.Printf("Working on mailinglist: %s", subName)
 
 				//Get mailing list data and store
-				getData(ctx, &storageConn, httpToDom, *workerNum, numMonths, *mailingList, groupName, startDateResult, endDateResult)
+				getData(ctx, &storageConn, httpToDom, *workerNum, numMonths, *mailingList, groupName, startDateResult, endDateResult, *allDateRun)
+
+				log.Printf("After get data ")
 			}
 		} else {
 			log.Printf("Build test run with mailman")
@@ -164,7 +164,7 @@ func main() {
 			}
 
 			//Get mailing list data and store
-			getData(ctx, &storageConn, httpToDom, *workerNum, numMonths, *mailingList, groupName, *startDate, *endDate)
+			getData(ctx, &storageConn, httpToDom, *workerNum, numMonths, *mailingList, groupName, *startDate, *endDate, *allDateRun)
 		}
 	}
 }

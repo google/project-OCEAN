@@ -166,7 +166,6 @@ func (gcs *StorageConnection) StoreContentInBucket(ctx context.Context, fileName
 		err = fmt.Errorf("%w: %v", storageCtxCloseErr, err)
 		return
 	}
-
 	return
 }
 
