@@ -126,7 +126,7 @@ func main() {
 					//startDateResult = now.AddDate(0, -1, 0).Format("2006-01-02")
 					//endDateResult = now.Format("2006-01-02")
 				}
-				log.Printf("Working on mailinglist: ", subName)
+				log.Printf("Working on mailinglist: %s", subName)
 
 				//Get mailing list data and store
 				getData(ctx, &storageConn, httpToDom, *workerNum, numMonths, *mailingList, groupName, startDateResult, endDateResult, *allDateRun)
