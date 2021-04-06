@@ -41,7 +41,7 @@ var (
 	projectID    = flag.String("project-id", "", "GCP Project id.")
 
 	//Below variables used if manual run
-	bucketName   = flag.String("bucket-name", "test", "Bucket name to store files.")
+	bucketName   = flag.String("bucket-name", "mailinglists", "Bucket name to store files.")
 	subDirectory = flag.String("subdirectory", "", "Subdirectory to store files. Enter 1 or more and use spaces to identify. CAUTION also enter the groupNames to load to in the same order.")
 	mailingList  = flag.String("mailinglist", "", "Choose which mailing list to process either pipermail (default), mailman, googlegroups")
 	groupNames   = flag.String("groupname", "", "Mailing list group name. Enter 1 or more and use spaces to identify. CAUTION also enter the buckets to load to in the same order.")
@@ -83,7 +83,8 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	storageConn := gcs.StorageConnection{
-		ProjectID: *projectID,
+		ProjectID:  *projectID,
+		BucketName: *bucketName,
 	}
 	if err = storageConn.ConnectClient(ctx); err != nil {
 		log.Fatalf("Connect GCS failes: %v", err)
@@ -93,7 +94,6 @@ func main() {
 		//Build run to load mailing list data
 		now := time.Now()
 		//Set variables in build that aren't coming in on command line
-		*bucketName = "mailinglists"
 		groupName := ""
 
 		// Setup bucket connection whether new or not
@@ -146,8 +146,6 @@ func main() {
 		}
 	} else {
 
-		//Manual run pulls variables from command line to load mailing list data
-		storageConn.BucketName = *bucketName
 		//Check and create bucket if needed
 		if err := storageConn.CreateBucket(ctx); err != nil {
 			log.Fatalf("Create GCS Bucket failed: %v", err)
