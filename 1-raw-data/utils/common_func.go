@@ -135,8 +135,6 @@ func FixDate(startDate, endDate string) (startDateResult, endDateResult string, 
 	if startDateTime.After(endDateTime) {
 		err = fmt.Errorf("%w start date %v was past end date %v. Update input with different start date.", dateFixErr, startDate, endDate)
 	}
-
-	//log.Printf("START & END DATE RESULTS", startDateResult, endDateResult)
 	// Return start dates and end date strings passed in that aren't empty and start is before end
 	return
 }
@@ -151,15 +149,21 @@ func ChangeFirstMonth(dateTime time.Time) (dateTimeResult time.Time) {
 	return
 }
 
-// TODO test and incorporate
 //Add month workaround for AddDate normalizing that causes behavior like adding a month to end of Jan to point to March.
 func AddMonth(date time.Time) (dateResult time.Time) {
 	// Add a month which pushes to the start of a month after what you want
-	tempDate := date.AddDate(0, 1, 0)
-	// Reset the date to the end of the prior month
-	dateResult = time.Date(tempDate.Year(), time.Month(tempDate.Month()), 0, 0, 0, 0, 0, time.UTC)
-	// Put the original day back into the change
-	return dateResult.AddDate(0, 0, date.Day())
+	month := int(date.Month())
+	date = ChangeFirstMonth(date)
+	switch month {
+	case 1, 3, 5, 7, 8, 10, 12:
+		dateResult = date.AddDate(0, 0, 31)
+	case 2:
+		dateResult = date.AddDate(0, 0, 30)
+		dateResult = time.Date(dateResult.Year(), dateResult.Month(), 0, 0, 0, 0, 0, time.UTC)
+	default:
+		dateResult = date.AddDate(0,1,0)
+	}
+	return
 }
 
 // Create month span dates so start must be 1st and end must be 1st of the following month unless today.
@@ -186,23 +190,18 @@ func SplitDatesByMonth(startDate, endDate string, numMonths int) (startDateResul
 		err = fmt.Errorf("end date: %v", err)
 	}
 
+
 	if endDateTime.After(currentDate) {
 		//Set end date to current date if end date is after current date
-		endDateTime = currentDate
-	} else if endDateTime.Day() > 1 && currentDate.After(endDateTime) {
+		endDateTime = ChangeFirstMonth(currentDate)
+	} else if endDateTime.Day() > 1 && currentDate != endDateTime {
 		//If end date past the first of the month and not in current month, set to the start of next month.
-		endDateTime = endDateTime.AddDate(0, 1, 0)
-		// TODO add tests for Feb and other months to make sure its doing this right
-		//AddDate for Feb adds 3 additional days that go into March and it pushes past the 1st of the month. This forces it to find the end of the following month.
-		endDateTime = time.Date(endDateTime.Year(), time.Month(endDateTime.Month()), 0, 0, 0, 0, 0, time.UTC)
+		endDateTime = AddMonth(endDateTime)
 	}
-
-	// Change start date to the 1st of the month
-	endDateTime = ChangeFirstMonth(endDateTime)
 
 	// Check that start and end are separated by number of months and adjust if needed assuming end date as origin to compare to
 	if int(endDateTime.Month()-startDateTime.Month()) != numMonths {
-		startDateTime = endDateTime.AddDate(0, -numMonths, 0)
+		startDateTime = endDateTime.AddDate(0,-numMonths,0)
 		log.Printf("endDate, %s, set to 1st following month of what was entered because it is past the 1st. startDate, %s, changed by number of months from endDate. Change endDate if you want something different.", endDateTime.String(), startDateTime.String())
 	}
 

@@ -290,9 +290,9 @@ func listRawMsgURLsByMonth(org, groupName string, startDateTime, endDateTime tim
 
 	totalMessages = getTotalTopics(dom)
 
-	// TODO find a better way to avoid pulling all data. Hit conneciton reset by peer error that inspired this
+	// TODO find a better way to avoid pulling all data. Hit connection reset by peer error that inspired this
 	if !allDateRun {
-		totalMessages = int(float64(totalMessages) * .15)
+		totalMessages = int(float64(totalMessages) * .10)
 		log.Printf("GOLANG MSG total limited %d", totalMessages)
 	}
 
@@ -344,7 +344,7 @@ func listRawMsgURLsByMonth(org, groupName string, startDateTime, endDateTime tim
 
 	} else {
 		//Warns but does not throw an error because it may run a full data load or a partial load based on restricted start and end date.
-		log.Printf("NOTE: %d topics captured out of %d total topics. If you are running a load of all topics this is a miss otherwise this is probably limited by a shorter timespan being captured.", countMsgs, totalMessages)
+		log.Printf("NOTE: %d topics captured out of %d total topics. If running a load of all topics this is an error; otherwise, probably limited by a shorter timespan being captured.", countMsgs, totalMessages)
 	}
 	return
 }
@@ -440,12 +440,10 @@ func GetGoogleGroupsData(ctx context.Context, org, groupName, startDateString, e
 		return fmt.Errorf("end date: %v", err)
 	}
 
-	log.Printf("GG before message URL results")
 	if messageURLResults, err = listRawMsgURLsByMonth(org, groupName, startDateTime, endDateTime, workerNum, httpToDom, topicToMsgMap, allDateRun); err != nil {
 		return
 	}
 
-	log.Printf("GG after message URL results")
 	if err = storeRawMsgByMonth(ctx, storage, workerNum, messageURLResults, httpToString); err != nil {
 		return
 	}

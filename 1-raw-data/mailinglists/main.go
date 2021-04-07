@@ -102,7 +102,9 @@ func main() {
 		// Run Build to load all mailing lists
 		if *allListRun {
 			log.Printf("Build all lists ")
-			mailListMap := map[string]string{"gg-angular": "2009-09-01", "gg-golang-announce": "2011-05-01", "gg-golang-checkins": "2009-11-01", "gg-golang-codereviews": "2013-12-01", "gg-golang-dev": "2009-11-01", "gg-golang-nuts": "2009-11-01", "gg-nodejs": "2009-06-01", "mailman-python-announce-list": "1999-04-01", "mailman-python-dev": "1999-04-01", "mailman-python-ideas": "2006-12-01", "pipermail-python-announce-list": "1999-04-01", "pipermail-python-dev": "1995-03-01", "pipermail-python-ideas": "2006-12-01", "pipermail-python-list": "1999-02-01"}
+			// TODO sort the keys and loop over them and add gcs and common func tests to run when loading
+			mailListMap := map[string]string{"gg-angular": "2009-09-01", "gg-golang-announce": "2011-05-01", "gg-golang-checkins": "2009-11-01", "gg-golang-codereviews": "2013-12-01", "gg-golang-dev": "2009-11-01", "gg-golang-nuts": "2009-11-01", "gg-nodejs": "2009-06-01"}
+			//mailListMap := map[string]string{"gg-angular": "2009-09-01", "gg-golang-announce": "2011-05-01", "gg-golang-checkins": "2009-11-01", "gg-golang-codereviews": "2013-12-01", "gg-golang-dev": "2009-11-01", "gg-golang-nuts": "2009-11-01", "gg-nodejs": "2009-06-01", "mailman-python-announce-list": "1999-04-01", "mailman-python-dev": "1999-04-01", "mailman-python-ideas": "2006-12-01", "pipermail-python-announce-list": "1999-04-01", "pipermail-python-dev": "1995-03-01", "pipermail-python-ideas": "2006-12-01", "pipermail-python-list": "1999-02-01"}
 
 			for subName, origStartDate := range mailListMap {
 				startDateResult, endDateResult := "", ""
@@ -118,13 +120,12 @@ func main() {
 						log.Fatalf("Date error: %v", err)
 					}
 				} else {
+					log.Printf("One Month Run All MailingLists ")
 					//Set start and end dates split by one month
 					if startDateResult, endDateResult, err = utils.SplitDatesByMonth(*startDate, *endDate, 1); err != nil {
 						log.Fatalf("Date error: %v", err)
 					}
-					//log.Printf("One Month Run All MailingLists")
-					//startDateResult = now.AddDate(0, -1, 0).Format("2006-01-02")
-					//endDateResult = now.Format("2006-01-02")
+					log.Printf("Start %s end %s ", startDateResult, endDateResult)
 				}
 				log.Printf("Working on mailinglist: %s", subName)
 
