@@ -49,6 +49,22 @@ var (
 	endDate      = flag.String("end-date", "", "End date in format of year-month-date and 4dig-2dig-2dig.")
 	workerNum    = flag.Int("workers", 1, "Number of workers to use for goroutines.")
 	subNames     []string
+
+	mailListMap = map[string]string{
+		"gg-angular":                     "2009-09-01",
+		"gg-golang-announce":             "2011-05-01",
+		"gg-golang-checkins":             "2009-11-01",
+		" gg-golang-codereviews":         "2013-12-01",
+		"gg-golang-dev":                  "2009-11-01",
+		"gg-golang-nuts":                 "2009-11-01",
+		"gg-nodejs":                      "2009-06-01",
+		"mailman-python-announce-list":   "1999-04-01",
+		"mailman-python-dev":             "1999-04-01",
+		"mailman-python-ideas":           "2006-12-01",
+		"pipermail-python-announce-list": "1999-04-01",
+		"pipermail-python-dev":           "1995-03-01",
+		"pipermail-python-ideas":         "2006-12-01",
+		"pipermail-python-list":          "1999-02-01"}
 )
 
 func getData(ctx context.Context, storage gcs.Connection, httpToDom utils.HttpDomResponse, workerNum, numMonths int, mailingList, groupName, startDateString, endDateString string) {
@@ -101,9 +117,6 @@ func main() {
 
 		// Run Build to load all mailing lists
 		if *allListRun {
-			log.Printf("Build all lists ")
-			mailListMap := map[string]string{"gg-angular": "2009-09-01", "gg-golang-announce": "2011-05-01", "gg-golang-checkins": "2009-11-01", " gg-golang-codereviews": "2013-12-01", "gg-golang-dev": "2009-11-01", "gg-golang-nuts": "2009-11-01", "gg-nodejs": "2009-06-01", "mailman-python-announce-list": "1999-04-01", "mailman-python-dev": "1999-04-01", "mailman-python-ideas": "2006-12-01", "pipermail-python-announce-list": "1999-04-01", "pipermail-python-dev": "1995-03-01", "pipermail-python-ideas": "2006-12-01", "pipermail-python-list": "1999-02-01"}
-
 			for subName, origStartDate := range mailListMap {
 				startDateResult, endDateResult := "", ""
 				storageConn.SubDirectory = subName
