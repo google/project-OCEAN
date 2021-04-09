@@ -115,35 +115,7 @@ func main() {
 		//Set variables in build that aren't coming in on command line
 		groupName := ""
 
-		// Run Build to load all mailing lists
-		if *allListRun {
-			for subName, origStartDate := range mailListMap {
-				startDateResult, endDateResult := "", ""
-				storageConn.SubDirectory = subName
-				*mailingList = strings.SplitN(subName, "-", 2)[0]
-				groupName = strings.SplitN(subName, "-", 2)[1]
-
-				if *allDateRun {
-					//Load all months
-					log.Printf("All Date Cloud Run")
-					//Set start and end dates with first mailing list date and current end date
-					if startDateResult, endDateResult, err = utils.FixDate(origStartDate, *endDate); err != nil {
-						log.Fatalf("Date error: %v", err)
-					}
-				} else {
-					//Set start and end dates split by one month
-					if startDateResult, endDateResult, err = utils.SplitDatesByMonth(*startDate, *endDate, 1); err != nil {
-						log.Fatalf("Date error: %v", err)
-					}
-					log.Printf("One Month Run All MailingLists")
-					startDateResult = now.AddDate(0, -1, 0).Format("2006-01-02")
-					endDateResult = now.Format("2006-01-02")
-				}
-
-				//Get mailing list data and store
-				getData(ctx, &storageConn, httpToDom, *workerNum, numMonths, *mailingList, groupName, startDateResult, endDateResult)
-			}
-		} else {
+		if !*allListRun {
 			log.Printf("Build test run with mailman")
 			storageConn.SubDirectory = "mailman-python-announce-list"
 			groupName = "python-announce-list"
@@ -153,6 +125,35 @@ func main() {
 			if err := mailman.GetMailmanData(ctx, &storageConn, groupName, *startDate, *endDate, numMonths); err != nil {
 				log.Fatalf("Mailman test build load failed: %v", err)
 			}
+			return
+		}
+
+		// Run Build to load all mailing lists
+		for subName, origStartDate := range mailListMap {
+			startDateResult, endDateResult := "", ""
+			storageConn.SubDirectory = subName
+			*mailingList = strings.SplitN(subName, "-", 2)[0]
+			groupName = strings.SplitN(subName, "-", 2)[1]
+
+			if *allDateRun {
+				//Load all months
+				log.Printf("All Date Cloud Run")
+				//Set start and end dates with first mailing list date and current end date
+				if startDateResult, endDateResult, err = utils.FixDate(origStartDate, *endDate); err != nil {
+					log.Fatalf("Date error: %v", err)
+				}
+			} else {
+				//Set start and end dates split by one month
+				if startDateResult, endDateResult, err = utils.SplitDatesByMonth(*startDate, *endDate, 1); err != nil {
+					log.Fatalf("Date error: %v", err)
+				}
+				log.Printf("One Month Run All MailingLists")
+				startDateResult = now.AddDate(0, -1, 0).Format("2006-01-02")
+				endDateResult = now.Format("2006-01-02")
+			}
+
+			//Get mailing list data and store
+			getData(ctx, &storageConn, httpToDom, *workerNum, numMonths, *mailingList, groupName, startDateResult, endDateResult)
 		}
 	} else {
 
