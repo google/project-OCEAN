@@ -86,8 +86,11 @@ func main() {
 		ProjectID:  *projectID,
 		BucketName: *bucketName,
 	}
-	if err = storageConn.ConnectClient(ctx); err != nil {
+	if err := storageConn.ConnectClient(ctx); err != nil {
 		log.Fatalf("Connect GCS failes: %v", err)
+	}
+	if err := storageConn.CreateBucket(ctx); err != nil {
+		log.Fatalf("Create GCS Bucket failed: %v", err)
 	}
 
 	if *buildListRun {
@@ -95,12 +98,6 @@ func main() {
 		now := time.Now()
 		//Set variables in build that aren't coming in on command line
 		groupName := ""
-
-		// Setup bucket connection whether new or not
-		storageConn.BucketName = *bucketName
-		if err := storageConn.CreateBucket(ctx); err != nil {
-			log.Fatalf("Create GCS Bucket failed: %v", err)
-		}
 
 		// Run Build to load all mailing lists
 		if *allListRun {
@@ -145,11 +142,6 @@ func main() {
 			}
 		}
 	} else {
-
-		//Check and create bucket if needed
-		if err := storageConn.CreateBucket(ctx); err != nil {
-			log.Fatalf("Create GCS Bucket failed: %v", err)
-		}
 
 		if *subDirectory != "" {
 			subNames = strings.Split(*subDirectory, " ")
