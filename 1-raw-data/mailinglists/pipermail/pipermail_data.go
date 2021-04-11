@@ -20,7 +20,6 @@ package pipermail
 
 //TODO
 // Add test of the specific page format expected and how to parse it
-// Check the most recent file stored and pull only what isn't there
 
 import (
 	"context"
@@ -90,28 +89,6 @@ func GetPipermailData(ctx context.Context, storage gcs.Connection, groupName, st
 	})
 	return storeErr
 }
-
-// TODO create func to create map of what is in bucket and then compare to what is pulled from site so only pull new files
-//func getLatestFile(setup Setup){
-//	ctx, cancel := context.WithTimeout(ctx, time.Second*10)
-//	defer cancel()
-//
-//	it := client.Bucket(bucket).Objects(ctx, &storage.Query{
-//		Prefix:    prefix,
-//		Delimiter: delim,
-//	})
-//	for {
-//		attrs, err := it.Next()
-//		if err == iterator.Done {
-//			break
-//		}
-//		if err != nil {
-//			return fmt.Errorf("Bucket(%q).Objects(): %v", bucket, err)
-//		}
-//		log.Fprintln(w, attrs.Name)
-//		setup.latestFile = attrs.Name
-//	}
-//}
 
 func main() {
 }

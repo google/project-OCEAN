@@ -74,8 +74,6 @@ import (
 	"github.com/google/project-OCEAN/1-raw-data/utils"
 )
 
-// TODO setup so can pull specific dates
-
 type urlResults struct {
 	urlMap map[string][]string
 	err    error
@@ -262,7 +260,7 @@ func getRawMsgURLWorker(org, groupName string, startDateTime, endDateTime time.T
 		//Combine all raw msg urls results if there are more than one topicURL page reviewed
 		for fileName, rawMsgURL := range tmpResults {
 			topicResults[fileName] = append(topicResults[fileName], rawMsgURL...)
-			log.Printf("%d filename results grabbed for file, %s, from googlegroup mailinglist: %s.", len(rawMsgURL), fileName, groupName)
+			//log.Printf("%d filename results grabbed for file, %s, from googlegroup mailinglist: %s.", len(rawMsgURL), fileName, groupName)
 		}
 	}
 	results <- urlResults{urlMap: topicResults, err: nil}
@@ -290,10 +288,10 @@ func listRawMsgURLsByMonth(org, groupName string, startDateTime, endDateTime tim
 
 	totalMessages = getTotalTopics(dom)
 
-	// TODO find a better way to avoid pulling all data. Hit conneciton reset by peer error that inspired this
+	// TODO find a better way to avoid pulling all data. Hit connection reset by peer error that inspired this
 	if !allDateRun {
-		totalMessages = int(float64(totalMessages) * .15)
-		log.Printf("GOLANG MSG total limited %d", totalMessages)
+		totalMessages = int(float64(totalMessages) * .07)
+		log.Printf("Googlegroups message total review limited to %d because getting a limited duration.", totalMessages)
 	}
 
 	// Lower worker # if its greater than totalMessages / 100 or % 100
@@ -335,7 +333,7 @@ func listRawMsgURLsByMonth(org, groupName string, startDateTime, endDateTime tim
 		for fileName, rawMsgURL := range rawMsgURLListOutput.urlMap {
 			rawMsgUrlMap[fileName] = append(rawMsgUrlMap[fileName], rawMsgURL...)
 			countMsgs = countMsgs + len(rawMsgURL)
-			log.Printf("Worker %d result in final: %d filename results grabbed for file: %s.", i, len(rawMsgURL), fileName)
+			//log.Printf("Worker %d result in final: %d filename results grabbed for file: %s.", i, len(rawMsgURL), fileName)
 		}
 	}
 
@@ -344,7 +342,7 @@ func listRawMsgURLsByMonth(org, groupName string, startDateTime, endDateTime tim
 
 	} else {
 		//Warns but does not throw an error because it may run a full data load or a partial load based on restricted start and end date.
-		log.Printf("NOTE: %d topics captured out of %d total topics. If you are running a load of all topics this is a miss otherwise this is probably limited by a shorter timespan being captured.", countMsgs, totalMessages)
+		log.Printf("NOTE: %d topics captured out of %d total topics. If running a load of all topics this is an error; otherwise, probably limited by a shorter timespan being captured.", countMsgs, totalMessages)
 	}
 	return
 }
@@ -370,9 +368,7 @@ func storeTextWorker(ctx context.Context, storage gcs.Connection, httpToString u
 			}
 			textStore = textStore + "/n" + response + "\n" + fmt.Sprintf("original_url: %s", msgURL) + "\n"
 		}
-		if urls.fileName != "" {
-			log.Printf("Storing %s", urls.fileName)
-		} else {
+		if urls.fileName == "" {
 			results <- fmt.Errorf("URL map filename threw an error: %w", emptyFileNameErr)
 			return
 		}
@@ -431,6 +427,7 @@ func GetGoogleGroupsData(ctx context.Context, org, groupName, startDateString, e
 	httpToDom = utils.DomResponse
 	httpToString = utils.StringResponse
 	topicToMsgMap = topicIDToRawMsgUrlMap
+	log.Printf("GOOGLEGROUPS loading")
 
 	// Setup start and end date times to limit what is loaded
 	if startDateTime, err = utils.GetDateTimeType(startDateString); err != nil {
@@ -440,12 +437,10 @@ func GetGoogleGroupsData(ctx context.Context, org, groupName, startDateString, e
 		return fmt.Errorf("end date: %v", err)
 	}
 
-	log.Printf("GG before message URL results")
 	if messageURLResults, err = listRawMsgURLsByMonth(org, groupName, startDateTime, endDateTime, workerNum, httpToDom, topicToMsgMap, allDateRun); err != nil {
 		return
 	}
 
-	log.Printf("GG after message URL results")
 	if err = storeRawMsgByMonth(ctx, storage, workerNum, messageURLResults, httpToString); err != nil {
 		return
 	}

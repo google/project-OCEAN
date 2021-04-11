@@ -132,11 +132,16 @@ func FixDate(startDate, endDate string) (startDateResult, endDateResult string, 
 		endDateResult = endDateTime.Format("2006-01-02")
 	}
 
+	if startDateResult == endDateResult {
+		if startDateResult, endDateResult, err = SplitDatesByMonth(startDateResult, endDateResult, 1); err != nil {
+			err = fmt.Errorf("%w start date %v and end date %v are not able to be fixed to 1 month split.", dateFixErr, startDate, endDate)
+		}
+		log.Printf("startDate, %s, changed to 1 month before endDate, %s because they were equal. Change startDate if you want something different.", startDateResult, endDateResult)
+	}
+
 	if startDateTime.After(endDateTime) {
 		err = fmt.Errorf("%w start date %v was past end date %v. Update input with different start date.", dateFixErr, startDate, endDate)
 	}
-
-	//log.Printf("START & END DATE RESULTS", startDateResult, endDateResult)
 	// Return start dates and end date strings passed in that aren't empty and start is before end
 	return
 }
@@ -151,15 +156,24 @@ func ChangeFirstMonth(dateTime time.Time) (dateTimeResult time.Time) {
 	return
 }
 
-// TODO test and incorporate
 //Add month workaround for AddDate normalizing that causes behavior like adding a month to end of Jan to point to March.
 func AddMonth(date time.Time) (dateResult time.Time) {
 	// Add a month which pushes to the start of a month after what you want
-	tempDate := date.AddDate(0, 1, 0)
-	// Reset the date to the end of the prior month
-	dateResult = time.Date(tempDate.Year(), time.Month(tempDate.Month()), 0, 0, 0, 0, 0, time.UTC)
-	// Put the original day back into the change
-	return dateResult.AddDate(0, 0, date.Day())
+	month := int(date.Month())
+	dateTemp := ChangeFirstMonth(date)
+	switch month {
+	case 1, 3, 5, 7, 8, 10, 12:
+		dateResult = dateTemp.AddDate(0, 0, 31)
+	case 2:
+		dateResult = dateTemp.AddDate(0, 0, 30)
+		dateResult = time.Date(dateResult.Year(), dateResult.Month(), 0, 0, 0, 0, 0, time.UTC)
+	default:
+		dateResult = dateTemp.AddDate(0, 1, 0)
+	}
+	if date.Day() > 1 {
+		dateResult.AddDate(0, 0, date.Day()-1)
+	}
+	return
 }
 
 // Create month span dates so start must be 1st and end must be 1st of the following month unless today.
@@ -188,22 +202,17 @@ func SplitDatesByMonth(startDate, endDate string, numMonths int) (startDateResul
 
 	if endDateTime.After(currentDate) {
 		//Set end date to current date if end date is after current date
-		endDateTime = currentDate
+		endDateTime = ChangeFirstMonth(currentDate)
 	} else if endDateTime.Day() > 1 && currentDate.After(endDateTime) {
 		//If end date past the first of the month and not in current month, set to the start of next month.
-		endDateTime = endDateTime.AddDate(0, 1, 0)
-		// TODO add tests for Feb and other months to make sure its doing this right
-		//AddDate for Feb adds 3 additional days that go into March and it pushes past the 1st of the month. This forces it to find the end of the following month.
-		endDateTime = time.Date(endDateTime.Year(), time.Month(endDateTime.Month()), 0, 0, 0, 0, 0, time.UTC)
+		log.Printf("End date after 1st of month and not the current date so it is moved to the following month.")
+		endDateTime = ChangeFirstMonth(AddMonth(endDateTime))
 	}
 
-	// Change start date to the 1st of the month
-	endDateTime = ChangeFirstMonth(endDateTime)
-
-	// Check that start and end are separated by number of months and adjust if needed assuming end date as origin to compare to
+	// Check that start and end are separated by number of months
 	if int(endDateTime.Month()-startDateTime.Month()) != numMonths {
 		startDateTime = endDateTime.AddDate(0, -numMonths, 0)
-		log.Printf("endDate, %s, set to 1st following month of what was entered because it is past the 1st. startDate, %s, changed by number of months from endDate. Change endDate if you want something different.", endDateTime.String(), startDateTime.String())
+		log.Printf("startDate, %s, changed to num months before endDate, %s. Change endDate if you want something different.", startDateTime.String(), endDateTime.String())
 	}
 
 	startDateResult = startDateTime.Format("2006-01-02")

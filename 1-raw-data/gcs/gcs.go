@@ -132,7 +132,7 @@ func (gcs *StorageConnection) StoreContentInBucket(ctx context.Context, fileName
 	}
 
 	fileName = addBucketToFileName(fileName, addName)
-	log.Print("GCS FILENAME ", fileName)
+	log.Printf("Storing subdirectory path filename %s ", fileName)
 	// If fileName doesn't exist this will throw runtime error: invalid memory address or nil pointer dereference. calling the bucket.Object doesn't return errors.
 	obj := gcs.bucket.Object(fileName)
 
