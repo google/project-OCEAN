@@ -132,6 +132,13 @@ func FixDate(startDate, endDate string) (startDateResult, endDateResult string, 
 		endDateResult = endDateTime.Format("2006-01-02")
 	}
 
+	if startDateResult == endDateResult {
+		if startDateResult, endDateResult, err = SplitDatesByMonth(startDateResult, endDateResult, 1); err != nil {
+			err = fmt.Errorf("%w start date %v and end date %v are not able to be fixed to 1 month split.", dateFixErr, startDate, endDate)
+		}
+		log.Printf("startDate, %s, changed to 1 month before endDate, %s because they were equal. Change startDate if you want something different.", startDateResult, endDateResult)
+	}
+
 	if startDateTime.After(endDateTime) {
 		err = fmt.Errorf("%w start date %v was past end date %v. Update input with different start date.", dateFixErr, startDate, endDate)
 	}
@@ -153,15 +160,18 @@ func ChangeFirstMonth(dateTime time.Time) (dateTimeResult time.Time) {
 func AddMonth(date time.Time) (dateResult time.Time) {
 	// Add a month which pushes to the start of a month after what you want
 	month := int(date.Month())
-	date = ChangeFirstMonth(date)
+	dateTemp := ChangeFirstMonth(date)
 	switch month {
 	case 1, 3, 5, 7, 8, 10, 12:
-		dateResult = date.AddDate(0, 0, 31)
+		dateResult = dateTemp.AddDate(0, 0, 31)
 	case 2:
-		dateResult = date.AddDate(0, 0, 30)
+		dateResult = dateTemp.AddDate(0, 0, 30)
 		dateResult = time.Date(dateResult.Year(), dateResult.Month(), 0, 0, 0, 0, 0, time.UTC)
 	default:
-		dateResult = date.AddDate(0,1,0)
+		dateResult = dateTemp.AddDate(0, 1, 0)
+	}
+	if date.Day() > 1 {
+		dateResult.AddDate(0, 0, date.Day()-1)
 	}
 	return
 }
@@ -190,19 +200,19 @@ func SplitDatesByMonth(startDate, endDate string, numMonths int) (startDateResul
 		err = fmt.Errorf("end date: %v", err)
 	}
 
-
 	if endDateTime.After(currentDate) {
 		//Set end date to current date if end date is after current date
 		endDateTime = ChangeFirstMonth(currentDate)
-	} else if endDateTime.Day() > 1 && currentDate != endDateTime {
+	} else if endDateTime.Day() > 1 && currentDate.After(endDateTime) {
 		//If end date past the first of the month and not in current month, set to the start of next month.
-		endDateTime = AddMonth(endDateTime)
+		log.Printf("End date after 1st of month and not the current date so it is moved to the following month.")
+		endDateTime = ChangeFirstMonth(AddMonth(endDateTime))
 	}
 
-	// Check that start and end are separated by number of months and adjust if needed assuming end date as origin to compare to
+	// Check that start and end are separated by number of months
 	if int(endDateTime.Month()-startDateTime.Month()) != numMonths {
-		startDateTime = endDateTime.AddDate(0,-numMonths,0)
-		log.Printf("endDate, %s, set to 1st following month of what was entered because it is past the 1st. startDate, %s, changed by number of months from endDate. Change endDate if you want something different.", endDateTime.String(), startDateTime.String())
+		startDateTime = endDateTime.AddDate(0, -numMonths, 0)
+		log.Printf("startDate, %s, changed to num months before endDate, %s. Change endDate if you want something different.", startDateTime.String(), endDateTime.String())
 	}
 
 	startDateResult = startDateTime.Format("2006-01-02")

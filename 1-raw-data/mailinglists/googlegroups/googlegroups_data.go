@@ -74,8 +74,6 @@ import (
 	"github.com/google/project-OCEAN/1-raw-data/utils"
 )
 
-// TODO setup so can pull specific dates
-
 type urlResults struct {
 	urlMap map[string][]string
 	err    error
@@ -262,7 +260,7 @@ func getRawMsgURLWorker(org, groupName string, startDateTime, endDateTime time.T
 		//Combine all raw msg urls results if there are more than one topicURL page reviewed
 		for fileName, rawMsgURL := range tmpResults {
 			topicResults[fileName] = append(topicResults[fileName], rawMsgURL...)
-			log.Printf("%d filename results grabbed for file, %s, from googlegroup mailinglist: %s.", len(rawMsgURL), fileName, groupName)
+			//log.Printf("%d filename results grabbed for file, %s, from googlegroup mailinglist: %s.", len(rawMsgURL), fileName, groupName)
 		}
 	}
 	results <- urlResults{urlMap: topicResults, err: nil}
@@ -292,8 +290,8 @@ func listRawMsgURLsByMonth(org, groupName string, startDateTime, endDateTime tim
 
 	// TODO find a better way to avoid pulling all data. Hit connection reset by peer error that inspired this
 	if !allDateRun {
-		totalMessages = int(float64(totalMessages) * .10)
-		log.Printf("GOLANG MSG total limited %d", totalMessages)
+		totalMessages = int(float64(totalMessages) * .07)
+		log.Printf("Googlegroups message total review limited to %d because getting a limited duration.", totalMessages)
 	}
 
 	// Lower worker # if its greater than totalMessages / 100 or % 100
@@ -335,7 +333,7 @@ func listRawMsgURLsByMonth(org, groupName string, startDateTime, endDateTime tim
 		for fileName, rawMsgURL := range rawMsgURLListOutput.urlMap {
 			rawMsgUrlMap[fileName] = append(rawMsgUrlMap[fileName], rawMsgURL...)
 			countMsgs = countMsgs + len(rawMsgURL)
-			log.Printf("Worker %d result in final: %d filename results grabbed for file: %s.", i, len(rawMsgURL), fileName)
+			//log.Printf("Worker %d result in final: %d filename results grabbed for file: %s.", i, len(rawMsgURL), fileName)
 		}
 	}
 
@@ -370,9 +368,7 @@ func storeTextWorker(ctx context.Context, storage gcs.Connection, httpToString u
 			}
 			textStore = textStore + "/n" + response + "\n" + fmt.Sprintf("original_url: %s", msgURL) + "\n"
 		}
-		if urls.fileName != "" {
-			log.Printf("Storing %s", urls.fileName)
-		} else {
+		if urls.fileName == "" {
 			results <- fmt.Errorf("URL map filename threw an error: %w", emptyFileNameErr)
 			return
 		}
@@ -431,6 +427,7 @@ func GetGoogleGroupsData(ctx context.Context, org, groupName, startDateString, e
 	httpToDom = utils.DomResponse
 	httpToString = utils.StringResponse
 	topicToMsgMap = topicIDToRawMsgUrlMap
+	log.Printf("GOOGLEGROUPS loading")
 
 	// Setup start and end date times to limit what is loaded
 	if startDateTime, err = utils.GetDateTimeType(startDateString); err != nil {

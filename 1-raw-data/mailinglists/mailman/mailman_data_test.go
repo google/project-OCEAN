@@ -76,6 +76,8 @@ func TestCreateMailManURL(t *testing.T) {
 
 func TestGetMailmanData(t *testing.T) {
 	ctx := context.Background()
+	//currentDate := time.Now()
+
 	storage := utils.NewFakeStorageConnection("mailman")
 
 	tests := []struct {
@@ -109,6 +111,14 @@ func TestGetMailmanData(t *testing.T) {
 			endDate:        "06-17",
 			numMonths:      1,
 			wantErr:        fmt.Errorf("06-17"),
+		},
+		{
+			comparisonType: "Test current date to check for loop issues",
+			groupName:      "Katalin Karikó",
+			startDate:      "2021-03-31",
+			endDate:        "2021-04-01",
+			numMonths:      1,
+			wantErr:        nil,
 		},
 	}
 	for _, test := range tests {

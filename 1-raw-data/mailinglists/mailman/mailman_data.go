@@ -18,9 +18,6 @@ Access and load Mailman data.
 
 package mailman
 
-//TODO
-// Run this monthly at start of new month to pull all new data
-
 import (
 	"context"
 	"errors"
@@ -54,6 +51,7 @@ func GetMailmanData(ctx context.Context, storage gcs.Connection, groupName, star
 	var startDateTime, endDateTime time.Time
 	var filename, url string
 	mailingListURL := fmt.Sprintf("https://mail.python.org/archives/list/%s@python.org/", groupName)
+	log.Printf("MAILMAN loading")
 
 	// Check dates have value, are not the same and that start before end.
 	if startDateResult, endDateResult, err = utils.FixDate(startDate, endDate); err != nil {
@@ -63,24 +61,25 @@ func GetMailmanData(ctx context.Context, storage gcs.Connection, groupName, star
 	orgEndDate := endDateResult
 
 	// Cycle and capture content by month
-	for startDateResult <= orgEndDate {
-		// Break dates out to span only a month, start must be 1st and end must be 1st of the following month unless today
+	for startDateResult < orgEndDate {
+		// Break dates by month duration
 		if startDateResult, endDateResult, err = utils.SplitDatesByMonth(startDateResult, endDateResult, numMonths); err != nil {
 			return
 		}
-		filename = createMailmanFilename(startDateResult)
 
+		filename = createMailmanFilename(startDateResult)
 		url = createMailmanURL(mailingListURL, filename, startDateResult, endDateResult)
 		if _, err = storage.StoreContentInBucket(ctx, filename, url, "url"); err != nil {
 			return fmt.Errorf("%w: %v", storageErr, err)
 		}
 
+		// Update the dates for the loop to continue if endDate is less
 		startDateTime, _ = utils.GetDateTimeType(startDateResult)
-		startDateResult = startDateTime.AddDate(0, 1, 0).Format("2006-01-02")
-		//startDateResult = utils.AddMonth(startDateTime).Format("2006-01-02")
-		endDateTime, _ = utils.GetDateTimeType(endDateResult)
-		endDateResult = endDateTime.AddDate(0, 1, 0).Format("2006-01-02")
-		print("MAILMAN", startDateResult, endDateResult)
+		startDateResult = utils.ChangeFirstMonth(utils.AddMonth(startDateTime)).Format("2006-01-02")
+		if endDateResult < orgEndDate {
+			endDateTime, _ = utils.GetDateTimeType(endDateResult)
+			endDateResult = utils.ChangeFirstMonth(utils.AddMonth(endDateTime)).Format("2006-01-02")
+		}
 	}
 
 	if endDateResult < orgEndDate {

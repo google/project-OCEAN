@@ -188,6 +188,24 @@ func TestSplitDatesByMonth(t *testing.T) {
 			wantEnd:        "2020-05-01",
 			err:            nil,
 		},
+		{
+			comparisonType: "End month earlier than start",
+			start:          "2020-12-01",
+			end:            "2021-01-01",
+			numMonths:      2,
+			wantStart:      "2020-11-01",
+			wantEnd:        "2021-01-01",
+			err:            nil,
+		},
+		{
+			comparisonType: "Split by more than a year",
+			start:          "2020-12-01",
+			end:            "2021-01-01",
+			numMonths:      23,
+			wantStart:      "2019-02-01",
+			wantEnd:        "2021-01-01",
+			err:            nil,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.comparisonType, func(t *testing.T) {
