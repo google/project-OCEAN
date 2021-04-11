@@ -34,4 +34,7 @@ jobs:
       run: go build -v ./1-raw-data/mailinglists/
 
     - name: Test
-      run: go test -v ./1-raw-data/mailinglists/
+      run: |
+        go test -v ./1-raw-data/mailinglists/
+        go test -v ./1-raw-data/gcs/
+        go test -v ./1-raw-data/utils/
