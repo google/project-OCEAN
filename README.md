@@ -21,7 +21,7 @@ We are collecting a list of datasets that would be useful for this project based
 
 **[OCEAN Open Source Ecosystem Data Map](https://docs.google.com/spreadsheets/d/e/2PACX-1vROZwJ7Bzzp58XHnS1LlfeJ5aLhKCugp9IzgaX5jCtZ9vki42Xrfy55HxJKAsrrDx1zZss4EsvbiQMX/pubhtml?gid=0&single=true)**
 
-If you know of a dataset that should be on the list or have updates to recommend, for now submit an Issue with as much of the following information that you have:
+If you know a dataset that should be on the list or have updates to recommend, for now submit an Issue with as much of the following information that you have:
 
 - Dataset Name 
 - Brief Description
