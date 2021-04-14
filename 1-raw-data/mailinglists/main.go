@@ -90,7 +90,6 @@ func reviewFileNamesAndFixDates(ctx context.Context, mailingList, groupName, sta
 			err = fmt.Errorf("Looping start dates threw an error: %v", err)
 		}
 	}
-	log.Printf("REVIEW FILENAMES %s, %s, %s", startDateResult, endDateResult, fileExists)
 	return
 }
 
