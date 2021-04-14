@@ -41,6 +41,11 @@ func NewFakeStorageConnection(testPackage string) *FakeStorageConnection {
 	return &FakeStorageConnection{}
 }
 
+// Simulate CheckFileExists
+func (gcs *FakeStorageConnection) CheckFileExists(ctx context.Context, fileName string) (exists bool) {
+	return true
+}
+
 // Simulate StoreGCS
 func (gcs *FakeStorageConnection) StoreContentInBucket(ctx context.Context, fileName, content, source string) (testVerifyCopyCalled int64, err error) {
 

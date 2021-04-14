@@ -21,6 +21,55 @@ import (
 	"time"
 )
 
+func TestCreateFileName(t *testing.T) {
+	tests := []struct {
+		comparisonType string
+		mailingList    string
+		groupName      string
+		date           string
+		wantName       string
+		wantErr        error
+	}{
+		{
+			comparisonType: "Test googlegroups name created.",
+			mailingList:    "gg",
+			groupName:      "lead",
+			date:           "1888-07-31",
+			wantName:       "gg-lead/1888-07-gg-lead.txt",
+			wantErr:        nil,
+		},
+		{
+			comparisonType: "Test mailman name created.",
+			mailingList:    "mailmain",
+			groupName:      "LaDuke",
+			date:           "2021-01-02",
+			wantName:       "mailmain-LaDuke/2021-02-mailmain-LaDuke.mbox.gz",
+			wantErr:        nil,
+		},
+		{
+			comparisonType: "Test pipermail name created.",
+			mailingList:    "pipermail",
+			groupName:      "environmentalist",
+			date:           "1989-08-07",
+			wantName:       "pipermail-environmentalist/1989-08-pipermail-environmentalist.txt.gz",
+			wantErr:        nil,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.comparisonType, func(t *testing.T) {
+			if gotName, gotErr := CreateFileName(test.mailingList, test.groupName, test.date); !errors.Is(gotErr, test.wantErr) {
+				if !strings.Contains(gotErr.Error(), test.wantErr.Error()) {
+					t.Errorf("CreateFileName response does not match.\n got: %v\nwant: %v", gotErr, test.wantErr)
+				}
+				if strings.Compare(test.wantName, gotName) != 0 {
+					t.Errorf("Failed creating filename. Got: %v and wanted: %v.", gotName, test.wantName)
+				}
+			}
+		})
+	}
+}
+
 func TestFixDates(t *testing.T) {
 	// Test passing in empty start, empty date, same date, start older than end, not a string
 	currentDate := time.Now()

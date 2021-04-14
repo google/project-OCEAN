@@ -32,7 +32,8 @@ var (
 	splitMonthErr  = fmt.Errorf("split month")
 )
 
-// Func pointer to create HTTP response body and return as a string
+//TODO - retry load if it fails
+//Func pointer to create HTTP response body and return as a string
 type HttpStringResponse func(string) (string, error)
 
 // Create HTTP response body and return as a string
@@ -82,6 +83,34 @@ func DomResponse(url string) (dom *goquery.Document, err error) {
 		err = fmt.Errorf("%w goquery dom conversion returned an error: %v", httpDomRespErr, err)
 		return
 	}
+	return
+}
+
+//Add subdirectory and date to filename
+func CreateFileName(mailingList, groupName, date string) (newFileName string, err error) {
+	var (
+		subDirFinal, fileType string
+		fileDate              time.Time
+	)
+
+	switch mailingList {
+	case "gg":
+		fileType = "txt"
+	case "mailman":
+		fileType = "mbox.gz"
+	case "pipermail":
+		fileType = "txt.gz"
+	}
+
+	subDirFinal = fmt.Sprintf("%s-%s", mailingList, groupName)
+
+	if fileDate, err = GetDateTimeType(date); err != nil {
+		err = fmt.Errorf("start date: %v", err)
+	}
+
+	newFileName = fmt.Sprintf("%s/%04d-%02d-%s.%s", subDirFinal, fileDate.Year(), int(fileDate.Month()), subDirFinal, fileType)
+
+	log.Printf("Final filename %s ", newFileName)
 	return
 }
 

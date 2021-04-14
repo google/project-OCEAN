@@ -22,15 +22,16 @@ package gcs
 // Check the most recent file stored and pull only what isn't there
 
 import (
-	"cloud.google.com/go/storage"
 	"context"
 	"fmt"
-	"github.com/googleapis/google-cloud-go-testing/storage/stiface"
-	"google.golang.org/api/iterator"
 	"io"
 	"log"
 	"net/http"
 	"strings"
+
+	"cloud.google.com/go/storage"
+	"github.com/googleapis/google-cloud-go-testing/storage/stiface"
+	"google.golang.org/api/iterator"
 )
 
 var (
@@ -44,6 +45,7 @@ var (
 
 type Connection interface {
 	StoreContentInBucket(ctx context.Context, fileName, content, source string) (testVerifyCopyCalled int64, err error)
+	CheckFileExists(ctx context.Context, fileName string) (fileExists bool)
 }
 
 type StorageConnection struct {
@@ -73,7 +75,6 @@ func (gcs *StorageConnection) CreateBucket(ctx context.Context) (err error) {
 
 	buckets := gcs.client.Buckets(ctx, gcs.ProjectID)
 	for {
-		// TODO bucket name validation
 		if gcs.BucketName == "" {
 			err = fmt.Errorf("%w error: %v. Re-enter bucketname.", emptyBucketName, gcs.BucketName)
 			return
@@ -87,7 +88,6 @@ func (gcs *StorageConnection) CreateBucket(ctx context.Context) (err error) {
 			}); err != nil {
 				// TODO - add random number to append to bucket name to resolve
 				return fmt.Errorf("%w failed: %v", createBucketErr, err)
-
 			}
 			log.Printf("Bucket %v created.\n", gcs.BucketName)
 			return
@@ -97,74 +97,86 @@ func (gcs *StorageConnection) CreateBucket(ctx context.Context) (err error) {
 			return
 		}
 		if attrs.Name == gcs.BucketName {
-			//getLatestFile() // TODO set this up to check and compare what is in the bucket vs what isn't
 			log.Printf("Bucket %v exists.\n", gcs.BucketName)
 			return
 		}
 	}
 }
 
-// Add bucketname to filename
-func addBucketToFileName(fileName, addName string) (newName string) {
-	fileNameParts := strings.SplitN(fileName, ".", 2)
-	return fmt.Sprintf("%s-%s.%s", fileNameParts[0], addName, fileNameParts[1])
+//Check if file already exists. Stiface doesn't have blob.exists() like storage has where blob is bucket.Object
+func (gcs *StorageConnection) CheckFileExists(ctx context.Context, fileName string) (exists bool) {
+	var (
+		err   error
+		attrs *storage.ObjectAttrs
+	)
+	it := gcs.bucket.Objects(ctx, nil)
+	for {
+		attrs, err = it.Next()
+		if err == iterator.Done {
+			break
+		}
+		if attrs.Name == fileName {
+			log.Printf("FILE %s FOUND", fileName)
+			return true
+		}
+	}
+	log.Printf("NO FILE FOUND for.............%s", fileName)
+	return
 }
 
-// Store url content in storage.
+// TODO pass in CheckFileExists so test on this function works
+//Store url content in storage.
 func (gcs *StorageConnection) StoreContentInBucket(ctx context.Context, fileName, content, source string) (testVerifyCopyCalled int64, err error) {
 	var (
 		response *http.Response
-		addName  string
+		newFileName string
 	)
 
-	//TODO add more filename validation
 	if fileName == "" {
+		// If fileName is empty this will throw runtime error: invalid memory address or nil pointer dereference. calling the bucket.Object doesn't return errors.
 		err = fmt.Errorf("%w", emptyFileNameErr)
 		return
 	}
 
-	// Add either the subdirectory or the bucketname
-	if gcs.SubDirectory != "" {
-		addName = gcs.SubDirectory
-		fileName = fmt.Sprintf("%s/%s", addName, fileName)
-	} else {
-		addName = gcs.BucketName
-	}
+	//Format the filename to store
+	fileNameParts := strings.SplitN(fileName, ".", 2)
+	newFileName = fmt.Sprintf("%s/%s-%s.%s", gcs.SubDirectory, fileNameParts[0], gcs.SubDirectory, fileNameParts[1])
 
-	fileName = addBucketToFileName(fileName, addName)
-	log.Printf("Storing subdirectory path filename %s ", fileName)
-	// If fileName doesn't exist this will throw runtime error: invalid memory address or nil pointer dereference. calling the bucket.Object doesn't return errors.
-	obj := gcs.bucket.Object(fileName)
+	fileExists := gcs.CheckFileExists(ctx, newFileName)
+	if !fileExists {
+		obj := gcs.bucket.Object(newFileName)
 
-	// w implements io.Writer.
-	w := obj.NewWriter(ctx)
+		// w implements io.Writer.
+		w := obj.NewWriter(ctx)
 
-	if source == "url" {
-		// Get HTTP response
-		response, err = http.Get(content)
+		if source == "url" {
+			// Get HTTP response
+			response, err = http.Get(content)
+			if err != nil {
+				err = fmt.Errorf("%w response error: %v", httpStrRespErr, err)
+				return
+			}
+			defer response.Body.Close()
+
+			if response.StatusCode == http.StatusOK {
+				// Copy file into storage
+				testVerifyCopyCalled, err = io.Copy(w, response.Body)
+			}
+		} else if source == "text" {
+			// Copy file into storage
+			testVerifyCopyCalled, err = io.Copy(w, strings.NewReader(content))
+		}
+
 		if err != nil {
-			err = fmt.Errorf("%w response error: %v", httpStrRespErr, err)
+			// Note not breaking when a file does not load but logging to investigate.
+			log.Printf("Storage did not copy %v to bucket with the error: %v", fileName, err)
+		}
+
+		if err = w.Close(); err != nil {
+			err = fmt.Errorf("%w: %v", storageCtxCloseErr, err)
 			return
 		}
-		defer response.Body.Close()
-
-		if response.StatusCode == http.StatusOK {
-			// Copy file into storage
-			testVerifyCopyCalled, err = io.Copy(w, response.Body)
-		}
-	} else if source == "text" {
-		// Copy file into storage
-		testVerifyCopyCalled, err = io.Copy(w, strings.NewReader(content))
-	}
-
-	if err != nil {
-		// Note not breaking when a file does not load but logging to investigate.
-		log.Printf("Storage did not copy %v to bucket with the error: %v", fileName, err)
-	}
-
-	if err = w.Close(); err != nil {
-		err = fmt.Errorf("%w: %v", storageCtxCloseErr, err)
-		return
+		log.Printf("Storage of %s complete.", fileName)
 	}
 	return
 }

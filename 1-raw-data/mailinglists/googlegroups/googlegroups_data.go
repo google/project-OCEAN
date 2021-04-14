@@ -409,8 +409,6 @@ func storeRawMsgByMonth(ctx context.Context, storage gcs.Connection, worker int,
 			return
 		}
 	}
-
-	log.Printf("Storage complete.")
 	return
 }
 
