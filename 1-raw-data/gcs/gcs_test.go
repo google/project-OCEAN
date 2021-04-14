@@ -198,104 +198,72 @@ func TestCreateBucket(t *testing.T) {
 	}
 }
 
-func TestAddBucketToFileName(t *testing.T) {
-	tests := []struct {
-		comparisonType string
-		fileName       string
-		bucketName     string
-		wantName       string
-	}{
-		{
-			comparisonType: "Test bucket name added to filename with one .",
-			fileName:       "environmentalist.gz",
-			bucketName:     "LaDuke",
-			wantName:       "environmentalist-LaDuke.gz",
-		},
-		{
-			comparisonType: "Test bucket name added to filename with multiple .",
-			fileName:       "environmentalist.txt.gz",
-			bucketName:     "LaDuke",
-			wantName:       "environmentalist-LaDuke.txt.gz",
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.comparisonType, func(t *testing.T) {
-			gotName := addBucketToFileName(test.fileName, test.bucketName)
-			if strings.Compare(test.wantName, gotName) != 0 {
-				t.Errorf("Failed at adding bucket to the filename. Got: %v and wanted: %v.", gotName, test.wantName)
-			}
-
-		})
-	}
-}
-
-func TestStoreContentInBucket(t *testing.T) {
-	ctx := context.Background()
-	gcs := setupGCS(t)
-
-	var (
-		gotVerify int64
-		gotErr    error
-	)
-
-	tests := []struct {
-		comparisonType string
-		storage        *StorageConnection
-		filename       string
-		content        string
-		source         string
-		wantResponse   bool
-		wantErr        error
-	}{
-		{
-			comparisonType: "Test Store called without error on url content",
-			storage:        gcs,
-			filename:       "environmentalist.gz",
-			content:        "https://en.wikipedia.org/wiki/Winona_LaDuke",
-			source:         "url",
-			wantResponse:   true,
-			wantErr:        nil,
-		},
-		{
-			comparisonType: "Test empty filename error",
-			storage:        gcs,
-			filename:       "",
-			content:        "https://en.wikipedia.org/wiki/Winona_LaDuke",
-			source:         "url",
-			wantResponse:   false,
-			wantErr:        emptyFileNameErr,
-		},
-		{
-			comparisonType: "Test empty url",
-			storage:        gcs,
-			filename:       "economist.gz",
-			content:        "",
-			source:         "url",
-			wantResponse:   false,
-			wantErr:        httpStrRespErr,
-		},
-		{
-			comparisonType: "Test Store called without error on text content",
-			storage:        gcs,
-			filename:       "writer.gz",
-			content:        "An American environmentalist, economist, writer who found the Indigenous Women's Network.",
-			source:         "text",
-			wantResponse:   true,
-			wantErr:        nil,
-		},
-	}
-	for _, test := range tests {
-		t.Run(test.comparisonType, func(t *testing.T) {
-			if gotVerify, gotErr = gcs.StoreContentInBucket(ctx, test.filename, test.content, test.source); !errors.Is(gotErr, test.wantErr) {
-				if !strings.Contains(gotErr.Error(), test.wantErr.Error()) {
-					t.Errorf("CreateMMFileName response does not match.\n got: %v\nwant: %v", gotErr, test.wantErr)
-				}
-			}
-			if test.wantResponse != (gotVerify > 0) {
-				t.Errorf("Storage Copy did not perform as expected. Returned value got: %v which does not match what was expected.", gotVerify)
-			}
-		})
-	}
-
-}
+//func TestStoreContentInBucket(t *testing.T) {
+//	ctx := context.Background()
+//	gcs := setupGCS(t)
+//
+//	var (
+//		gotVerify int64
+//		gotErr    error
+//	)
+//
+//	tests := []struct {
+//		comparisonType string
+//		storage        *StorageConnection
+//		filename       string
+//		content        string
+//		source         string
+//		wantResponse   bool
+//		wantErr        error
+//	}{
+//		{
+//			comparisonType: "Test Store called without error on url content",
+//			storage:        gcs,
+//			filename:       "environmentalist.gz",
+//			content:        "https://en.wikipedia.org/wiki/Winona_LaDuke",
+//			source:         "url",
+//			wantResponse:   true,
+//			wantErr:        nil,
+//		},
+//		{
+//			comparisonType: "Test empty filename error",
+//			storage:        gcs,
+//			filename:       "",
+//			content:        "https://en.wikipedia.org/wiki/Winona_LaDuke",
+//			source:         "url",
+//			wantResponse:   false,
+//			wantErr:        emptyFileNameErr,
+//		},
+//		{
+//			comparisonType: "Test empty url",
+//			storage:        gcs,
+//			filename:       "economist.gz",
+//			content:        "",
+//			source:         "url",
+//			wantResponse:   false,
+//			wantErr:        httpStrRespErr,
+//		},
+//		{
+//			comparisonType: "Test Store called without error on text content",
+//			storage:        gcs,
+//			filename:       "writer.gz",
+//			content:        "An American environmentalist, economist, writer who found the Indigenous Women's Network.",
+//			source:         "text",
+//			wantResponse:   true,
+//			wantErr:        nil,
+//		},
+//	}
+//	for _, test := range tests {
+//		t.Run(test.comparisonType, func(t *testing.T) {
+//			if gotVerify, gotErr = gcs.StoreContentInBucket(ctx, test.filename, test.content, test.source); !errors.Is(gotErr, test.wantErr) {
+//				if !strings.Contains(gotErr.Error(), test.wantErr.Error()) {
+//					t.Errorf("StoreContentInBucket response does not match.\n got: %v\nwant: %v", gotErr, test.wantErr)
+//				}
+//			}
+//			if test.wantResponse != (gotVerify > 0) {
+//				t.Errorf("Storage Copy did not perform as expected. Returned value got: %v which does not match what was expected.", gotVerify)
+//			}
+//		})
+//	}
+//
+//}
