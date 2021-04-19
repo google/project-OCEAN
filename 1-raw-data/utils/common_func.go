@@ -179,6 +179,7 @@ func FixDate(startDate, endDate string) (startDateResult, endDateResult string, 
 func ChangeFirstMonth(dateTime time.Time) (dateTimeResult time.Time) {
 	if dateTime.Day() > 1 {
 		dateTimeResult = dateTime.AddDate(0, 0, -dateTime.Day()+1)
+		//dateTimeResult = time.Date(dateTime.Year(), dateTime.Month(), 1, 0, 0, 0, 0, time.UTC)
 	} else {
 		dateTimeResult = dateTime
 	}
