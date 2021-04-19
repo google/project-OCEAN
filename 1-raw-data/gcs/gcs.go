@@ -87,7 +87,7 @@ func (gcs *StorageConnection) CreateBucket(ctx context.Context) (err error) {
 				Location: "US",
 			}); err != nil {
 				// TODO - add random number to append to bucket name to resolve
-				return fmt.Errorf("%w failed: %v", createBucketErr, err)
+				return fmt.Errorf("%w failed on bucket name %s: %v", createBucketErr, gcs.BucketName, err)
 			}
 			log.Printf("Bucket %v created.\n", gcs.BucketName)
 			return
