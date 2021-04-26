@@ -35,9 +35,9 @@ import (
 
 var (
 	//Variables required for build run
-	codeRunType = flag.String("code-run-type", "buildTestRun","Use flag to define which type configuration to run. Options are buildAllData, buildAllLatestMonthData, buildAllRangeDatesData, buildTestRun, manualRun.")
-	projectID    = flag.String("project-id", "", "GCP Project id.")
-	bucketName   = flag.String("bucket-name", "mailinglists", "Bucket name to store files.")
+	codeRunType = flag.String("code-run-type", "buildTestRun", "Use flag to define which type configuration to run. Options are buildAllData, buildAllLatestMonthData, buildAllRangeDatesData, buildTestRun, manualRun.")
+	projectID   = flag.String("project-id", "", "GCP Project id.")
+	bucketName  = flag.String("bucket-name", "mailinglists", "Bucket name to store files.")
 
 	//Optional variables depending on build or command line setup
 	startDate = flag.String("start-date", "", "Start date in format of year-month-date and 4dig-2dig-2dig.")
@@ -68,14 +68,14 @@ var (
 		"pipermail-python-list":          "1999-02-01"}
 )
 
-func getData(ctx context.Context, storage gcs.Connection, httpToDom utils.HttpDomResponse, workerNum, numMonths int, mailingList, groupName, startDateString, endDateString string, allDateRun bool) {
+func getData(ctx context.Context, storage gcs.Connection, httpToDom utils.HttpDomResponse, workerNum int, mailingList, groupName, startDateString, endDateString string, allDateRun bool) {
 	switch mailingList {
 	case "pipermail":
 		if err := pipermail.GetPipermailData(ctx, storage, groupName, startDateString, endDateString, httpToDom); err != nil {
 			log.Fatalf("Pipermail load failed: %v", err)
 		}
 	case "mailman":
-		if err := mailman.GetMailmanData(ctx, storage, groupName, startDateString, endDateString, numMonths); err != nil {
+		if err := mailman.GetMailmanData(ctx, storage, groupName, startDateString, endDateString); err != nil {
 			log.Fatalf("Mailman load failed: %v", err)
 		}
 	case "gg":
@@ -100,7 +100,7 @@ func reviewFileNamesAndFixDates(ctx context.Context, mailingList, groupName, sta
 
 		//Reduce end date if file exists
 		if fileExists, endDateResult, err = createAndCheckFileNames(ctx, mailingList, groupName, endDateResult, false, storageConn); err != nil {
-			err = fmt.Errorf("Looping start dates threw an error: %v", err)
+			err = fmt.Errorf("Looping end dates threw an error: %v", err)
 		}
 	}
 	return
@@ -122,19 +122,18 @@ func createAndCheckFileNames(ctx context.Context, mailingList, groupName, dateTo
 	//Increase startDate by a month if file exists
 	if fileExists {
 		if dateT, err = utils.GetDateTimeType(dateToCheck); err != nil {
-			err = fmt.Errorf("start date: %v", err)
+			err = fmt.Errorf("Date in Main error: %v", err)
 		}
 		//Add or subtract a month depending on if start or end
 		if forwardDate {
 			dateResult = utils.AddMonth(dateT).Format("2006-01-02")
-			log.Printf("DATE RESULT FOWARD %s", dateResult)
+			log.Printf("Added one month to create the new date: %s.", dateResult)
 		} else {
 			dateResult = dateT.AddDate(0, -1, 0).Format("2006-01-02")
-			log.Printf("DATE RESULT BACKWARD %s", dateResult)
+			log.Printf("Subtracted one month to create the new date: %s.", dateResult)
 		}
 	} else {
 		dateResult = dateToCheck
-		log.Printf("DATE RESULT NOWHERE %s", dateResult)
 	}
 	return
 }
@@ -167,7 +166,7 @@ func main() {
 	switch *codeRunType {
 	case "buildTestRun":
 		// Run Build to test with only mailman python announce list
-		log.Printf("Build test run with mailman")
+		log.Printf("Build test run using python-announce-list in  Mailman.")
 
 		groupName := "python-announce-list"
 		subDirName := "mailman-python-announce-list"
@@ -179,14 +178,13 @@ func main() {
 			log.Fatalf("Checking fileName exists error: %v", err)
 		}
 		if !fileExists && startDateResult < endDateResult {
-			log.Printf("Working on mailinglist group: %s", groupName)
-			if err := mailman.GetMailmanData(ctx, &storageConn, groupName, *startDate, *endDate, *numMonths); err != nil {
+			if err := mailman.GetMailmanData(ctx, &storageConn, groupName, *startDate, *endDate); err != nil {
 				log.Fatalf("Mailman test build load failed: %v", err)
 			}
 		}
 		return
 	case "buildAllData", "buildAllLatestMonthData", "buildAllRangeDatesData":
-		log.Printf("Build all lists ")
+		log.Printf("Build all mailing lists.")
 		groupName := ""
 		allDateRun := true
 
@@ -199,7 +197,7 @@ func main() {
 			switch *codeRunType {
 			case "buildAllData":
 				//Load all data from all mailing list group dates
-				log.Printf("Load all dates and data")
+				log.Printf("Load all dates and data.")
 				//Set start and end dates with first mailing list date and current end date
 				*endDate = utils.ChangeFirstMonth(now).Format("2006-01-02")
 				if startDateResult, endDateResult, err = utils.FixDate(origStartDate, *endDate); err != nil {
@@ -207,7 +205,7 @@ func main() {
 				}
 			case "buildAllLatestMonthData":
 				//Run Build to load most current month for all mailing lists
-				log.Printf("Load latest month")
+				log.Printf("Load last month.")
 				*numMonths = 1
 				//Remove pipermail-python-dev, .pipermail-python-announce-list, pipermail-python-ideas because no new data
 				delete(mailListSubDirMap, "pipermail-python-dev")
@@ -219,7 +217,7 @@ func main() {
 					log.Fatalf("Date error: %v", err)
 				}
 			case "buildAllRangeDatesData":
-				log.Printf("Load range of dates")
+				log.Printf("Load range of dates.")
 				//Set start and end dates split by limited number of months
 				if startDateResult, endDateResult, err = utils.SplitDatesByMonth(*startDate, *endDate, *numMonths); err != nil {
 					log.Fatalf("Date error: %v", err)
@@ -231,14 +229,13 @@ func main() {
 			}
 			//Get mailinglist data and store
 			if !fileExists && startDateResult < endDateResult {
-				log.Printf("Loading mailinglist group: %s data.", groupName)
-				getData(ctx, &storageConn, httpToDom, *workerNum, *numMonths, *mailingList, groupName, startDateResult, endDateResult, allDateRun)
+				getData(ctx, &storageConn, httpToDom, *workerNum, *mailingList, groupName, startDateResult, endDateResult, allDateRun)
 			}
 		}
 		return
 	case "manualRun":
 		//Manual run pulls variables from command line to load mailinglist group data
-		log.Printf("Command line / non build mailinglist group run")
+		log.Printf("Command line/manual run (not Build) to get mailing list data.")
 		allDateRun := false
 		if *subDirectory != "" {
 			subDirNames = strings.Split(*subDirectory, " ")
@@ -258,8 +255,7 @@ func main() {
 			}
 			//Get mailinglist data and store
 			if !fileExists && startDateResult < endDateResult {
-				log.Printf("Loading mailinglist group: %s data.", groupName)
-				getData(ctx, &storageConn, httpToDom, *workerNum, *numMonths, *mailingList, groupName, startDateResult, endDateResult, allDateRun)
+				getData(ctx, &storageConn, httpToDom, *workerNum, *mailingList, groupName, startDateResult, endDateResult, allDateRun)
 			}
 		}
 		return

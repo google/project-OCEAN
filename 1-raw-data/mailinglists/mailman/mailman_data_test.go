@@ -105,14 +105,6 @@ func TestGetMailmanData(t *testing.T) {
 			wantErr:        storageErr,
 		},
 		{
-			comparisonType: "SetDate error EndDate wrong format",
-			groupName:      "Susan_La_Flesche_Picotte",
-			startDate:      "1915-09-01",
-			endDate:        "06-17",
-			numMonths:      1,
-			wantErr:        fmt.Errorf("06-17"),
-		},
-		{
 			comparisonType: "Test current date to check for loop issues",
 			groupName:      "Katalin Karikó",
 			startDate:      "2021-03-31",
@@ -123,7 +115,7 @@ func TestGetMailmanData(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.comparisonType, func(t *testing.T) {
-			if gotErr := GetMailmanData(ctx, storage, test.groupName, test.startDate, test.endDate, test.numMonths); !errors.Is(gotErr, test.wantErr) {
+			if gotErr := GetMailmanData(ctx, storage, test.groupName, test.startDate, test.endDate); !errors.Is(gotErr, test.wantErr) {
 				if gotErr == nil || !strings.Contains(gotErr.Error(), test.wantErr.Error()) {
 					t.Errorf("Error doesn't match.\n got: %v\nwant it to contain: %v", gotErr, test.wantErr)
 				}

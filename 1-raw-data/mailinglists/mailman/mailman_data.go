@@ -46,27 +46,23 @@ func createMailmanURL(mailingListURL, filename, startDate, endDate string) (url 
 }
 
 // Get, parse and store mailman data in GCS.
-func GetMailmanData(ctx context.Context, storage gcs.Connection, groupName, startDate, endDate string, numMonths int) (err error) {
+func GetMailmanData(ctx context.Context, storage gcs.Connection, groupName, startDate, endDate string) (err error) {
 	var startDateResult, endDateResult string
 	var startDateTime, endDateTime time.Time
 	var filename, url string
 	mailingListURL := fmt.Sprintf("https://mail.python.org/archives/list/%s@python.org/", groupName)
-	log.Printf("MAILMAN loading")
+	log.Printf("MAILMAN loading %s:", groupName)
 
-	// Check dates have value, are not the same and that start before end.
-	if startDateResult, endDateResult, err = utils.FixDate(startDate, endDate); err != nil {
-		return
+	orgEndDate := endDate
+	startDateResult = startDate
+	if startDateTime, err = utils.GetDateTimeType(startDateResult); err != nil {
+		err = fmt.Errorf("Start date in Mailman error: %v", err)
 	}
-
-	orgEndDate := endDateResult
+	// Cycle through dates 1 month at a time from start date
+	endDateResult = utils.AddMonth(startDateTime).Format("2006-01-02")
 
 	// Cycle and capture content by month
 	for startDateResult < orgEndDate {
-		// Break dates by month duration
-		if startDateResult, endDateResult, err = utils.SplitDatesByMonth(startDateResult, endDateResult, numMonths); err != nil {
-			return
-		}
-
 		filename = createMailmanFilename(startDateResult)
 
 		url = createMailmanURL(mailingListURL, filename, startDateResult, endDateResult)
@@ -74,15 +70,20 @@ func GetMailmanData(ctx context.Context, storage gcs.Connection, groupName, star
 			return fmt.Errorf("%w: %v", storageErr, err)
 		}
 
-		// Update the dates for the loop to continue if endDate is less
-		startDateTime, _ = utils.GetDateTimeType(startDateResult)
+		//Update the dates for the loop to continue if endDate is less
+		if startDateTime, err = utils.GetDateTimeType(startDateResult); err != nil {
+			err = fmt.Errorf("Start date in Mailman error: %v", err)
+		}
 		startDateResult = utils.ChangeFirstMonth(utils.AddMonth(startDateTime)).Format("2006-01-02")
 		if endDateResult < orgEndDate {
-			endDateTime, _ = utils.GetDateTimeType(endDateResult)
+			if endDateTime, err = utils.GetDateTimeType(endDateResult); err != nil {
+				err = fmt.Errorf("End date in Mailman error: %v", err)
+			}
 			endDateResult = utils.ChangeFirstMonth(utils.AddMonth(endDateTime)).Format("2006-01-02")
 		}
 	}
 
+	//Check that it went through all the dates
 	if endDateResult < orgEndDate {
 		log.Printf("Did not copy all dates. Stopped at %v vs. orginal date: %v", endDateResult, orgEndDate)
 		return fmt.Errorf("%w to get all the dates, stopped at: %v when expected to stop at: %v", storageErr, endDateResult, orgEndDate)

@@ -116,11 +116,11 @@ func (gcs *StorageConnection) CheckFileExists(ctx context.Context, fileName stri
 			break
 		}
 		if attrs.Name == fileName {
-			log.Printf("FILE %s FOUND", fileName)
-			return true
+			exists = true
+			return
 		}
 	}
-	log.Printf("NO FILE FOUND for.............%s", fileName)
+	exists = false
 	return
 }
 
@@ -128,7 +128,7 @@ func (gcs *StorageConnection) CheckFileExists(ctx context.Context, fileName stri
 //Store url content in storage.
 func (gcs *StorageConnection) StoreContentInBucket(ctx context.Context, fileName, content, source string) (testVerifyCopyCalled int64, err error) {
 	var (
-		response *http.Response
+		response    *http.Response
 		newFileName string
 	)
 
@@ -176,7 +176,7 @@ func (gcs *StorageConnection) StoreContentInBucket(ctx context.Context, fileName
 			err = fmt.Errorf("%w: %v", storageCtxCloseErr, err)
 			return
 		}
-		log.Printf("Storage of %s complete.", fileName)
+		log.Printf("Storage of %s complete.", newFileName)
 	}
 	return
 }

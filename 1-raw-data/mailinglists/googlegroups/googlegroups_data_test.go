@@ -17,7 +17,6 @@ package googlegroups
 import (
 	"context"
 	"errors"
-	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -238,7 +237,6 @@ func TestGetMsgIDsFromDom(t *testing.T) {
 
 func TestTopicIDToRawMsgUrlMap(t *testing.T) {
 	now := time.Now()
-	timeMonthCheck, timeYearCheck := now.Month(), now.Year()
 
 	exTopicIdDomTime, _ := utils.FakeHttpDomResponse("topicIDToRawMsgUrlMapTime")
 	exTopicIdDomDate, _ := utils.FakeHttpDomResponse("topicIDToRawMsgUrlMapDate")
@@ -263,15 +261,14 @@ func TestTopicIDToRawMsgUrlMap(t *testing.T) {
 		wantErr          error
 	}{
 		{
-			comparisonType: "Pull topic ids for time",
-			org:            "",
-			groupName:      "golang-checkins",
-			startDateTime:  startDateTimeIdsTime,
-			endDateTime:    endDateTimeIdsTime,
-			dom:            exTopicIdDomTime,
-			wantRawMsgURLMap: map[string][]string{
-				fmt.Sprintf("%4d-%02d.txt", timeYearCheck, timeMonthCheck): []string{"https://groups.google.com/forum/message/raw?msg=golang-checkins/8sv65_WCOS4/3Fc-diD_AwAJ"}},
-			wantErr: nil,
+			comparisonType:   "Pull topic ids for time which would fall outside timespan and return empty.",
+			org:              "",
+			groupName:        "golang-checkins",
+			startDateTime:    startDateTimeIdsTime,
+			endDateTime:      endDateTimeIdsTime,
+			dom:              exTopicIdDomTime,
+			wantRawMsgURLMap: map[string][]string{},
+			wantErr:          nil,
 		},
 		{
 			comparisonType: "Pull topic ids for date",
