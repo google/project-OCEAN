@@ -50,7 +50,7 @@ func changeMonthToDigit(fileName string) (newName string, fileDate time.Time) {
 // Get, parse and store Pipermail data in GCS.
 func GetPipermailData(ctx context.Context, storage gcs.Connection, groupName, startDateString, endDateString string, httpToDom utils.HttpDomResponse) (storeErr error) {
 	mailingListURL := fmt.Sprintf("https://mail.python.org/pipermail/%s/", groupName)
-	log.Printf("PIPERMAIL loading")
+	log.Printf("PIPERMAIL loading %s:", groupName)
 
 	var (
 		dom                        *goquery.Document
@@ -62,10 +62,10 @@ func GetPipermailData(ctx context.Context, storage gcs.Connection, groupName, st
 		return fmt.Errorf("HTTP dom error: %v", err)
 	}
 	if startDateTime, err = utils.GetDateTimeType(startDateString); err != nil {
-		return fmt.Errorf("start date: %v", err)
+		return fmt.Errorf("Start date in Pipermail error: %v", err)
 	}
 	if endDateTime, err = utils.GetDateTimeType(endDateString); err != nil {
-		return fmt.Errorf("end date: %v", err)
+		return fmt.Errorf("End date in Pipermail error: %v", err)
 	}
 
 	dom.Find("tr").Find("td").Find("a").Each(func(i int, s *goquery.Selection) {

@@ -153,6 +153,39 @@ func TestFixDates(t *testing.T) {
 	}
 }
 
+func TestAddMonth(t *testing.T) {
+	tests := []struct {
+		comparisonType string
+		date           time.Time
+		wantTime       time.Time
+	}{
+		{
+			comparisonType: "Test add month works.",
+			date:           time.Date(1989, 8, 1, 0, 0, 0, 0, time.UTC),
+			wantTime:       time.Date(1989, 9, 1, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			comparisonType: "Test added month to leap year 2001.",
+			date:           time.Date(2000, 2, 1, 0, 0, 0, 0, time.UTC),
+			wantTime:       time.Date(2000, 3, 2, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			comparisonType: "Test added month to non leap year 2007.",
+			date:           time.Date(2007, 2, 1, 0, 0, 0, 0, time.UTC),
+			wantTime:       time.Date(2007, 3, 3, 0, 0, 0, 0, time.UTC),
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.comparisonType, func(t *testing.T) {
+			gotTime := AddMonth(test.date)
+			if !test.wantTime.Equal(gotTime) {
+				t.Errorf("Failed add 1 month to date. Got: %v and wanted: %v.", gotTime, test.wantTime)
+			}
+		})
+	}
+}
+
 func TestSplitDatesByMonth(t *testing.T) {
 	currentDate := time.Now()
 

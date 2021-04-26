@@ -43,6 +43,9 @@ func NewFakeStorageConnection(testPackage string) *FakeStorageConnection {
 
 // Simulate CheckFileExists
 func (gcs *FakeStorageConnection) CheckFileExists(ctx context.Context, fileName string) (exists bool) {
+	if strings.Contains(fileName, "environmentalist") {
+		return false
+	}
 	return true
 }
 

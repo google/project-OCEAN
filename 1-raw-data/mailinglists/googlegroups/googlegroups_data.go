@@ -159,7 +159,7 @@ func getMsgIDsFromDom(org, topicId, groupName string, dom *goquery.Document) (ra
 		msgId = path.Base(msgUrl)
 		rawMsgUrl = fmt.Sprintf("https://groups.google.com%s/forum/message/raw?msg=%s/%s/%s", org, groupName, topicId, msgId)
 	} else {
-		log.Printf("************** NO MSG ID FOUND in topicId: %s ************** ", topicId)
+		log.Printf("No message ID found in topicId: %s.", topicId)
 	}
 	return
 }
@@ -342,7 +342,7 @@ func listRawMsgURLsByMonth(org, groupName string, startDateTime, endDateTime tim
 
 	} else {
 		//Warns but does not throw an error because it may run a full data load or a partial load based on restricted start and end date.
-		log.Printf("NOTE: %d topics captured out of %d total topics. If running a load of all topics this is an error; otherwise, probably limited by a shorter timespan being captured.", countMsgs, totalMessages)
+		log.Printf("%d topics captured out of %d total topics. If running a load of all topics this is an error; otherwise, probably limited by a shorter timespan being captured.", countMsgs, totalMessages)
 	}
 	return
 }
@@ -425,14 +425,14 @@ func GetGoogleGroupsData(ctx context.Context, org, groupName, startDateString, e
 	httpToDom = utils.DomResponse
 	httpToString = utils.StringResponse
 	topicToMsgMap = topicIDToRawMsgUrlMap
-	log.Printf("GOOGLEGROUPS loading")
+	log.Printf("GOOGLEGROUPS loading %s:", groupName)
 
 	// Setup start and end date times to limit what is loaded
 	if startDateTime, err = utils.GetDateTimeType(startDateString); err != nil {
-		return fmt.Errorf("start date: %v", err)
+		return fmt.Errorf("Start date in GoogleGroups error: %v", err)
 	}
 	if endDateTime, err = utils.GetDateTimeType(endDateString); err != nil {
-		return fmt.Errorf("end date: %v", err)
+		return fmt.Errorf("End date in GoogleGroups error: %v", err)
 	}
 
 	if messageURLResults, err = listRawMsgURLsByMonth(org, groupName, startDateTime, endDateTime, workerNum, httpToDom, topicToMsgMap, allDateRun); err != nil {
