@@ -22,6 +22,7 @@ steps:
 # Run for all available lists last month
 - name: golang
   args: ['go', 'run', '1-raw-data/mailinglists/main.go', '-code-run-type=buildAllLatestMonthData', '-project-id=$PROJECT_ID']
+  timeout: '10800s'
 
 # Run all lists and all dates load
 #- name: golang
