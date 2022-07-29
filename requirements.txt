@@ -43,7 +43,7 @@ jupyterlab==3.0.17
 jupyterlab-pygments==0.1.2
 jupyterlab-server==2.3.0
 MarkupSafe==1.1.1
-mistune==0.8.4
+mistune==2.0.3
 mock==4.0.3
 nbclient==0.5.3
 nbconvert==6.0.7
