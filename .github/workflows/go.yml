@@ -35,4 +35,9 @@ jobs:
 
     - name: Test
       run: |
-        find . -name go.mod -execdir go test -v ./... \;
+        go test -v ./1-raw-data/mailinglists
+        go test -v ./1-raw-data/mailinglists/googlegroups
+        go test -v ./1-raw-data/mailinglists/pipermail
+        go test -v ./1-raw-data/mailinglists/mailman
+        go test -v ./1-raw-data/gcs/
+        go test -v ./1-raw-data/utils/
