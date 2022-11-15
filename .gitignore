@@ -2,6 +2,9 @@
 out/
 vendor/
 
+# Specific executables #
+mailinglists
+
 # Compiled source #
 ###################
 *.com
