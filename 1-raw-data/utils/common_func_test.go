@@ -236,7 +236,7 @@ func TestSplitDatesByMonth(t *testing.T) {
 		},
 		{
 			comparisonType: "End date after today if start of month",
-			start:          "2020-10-01",
+			start:          "2022-10-01",
 			end:            "3020-10-01",
 			numMonths:      1,
 			wantStart:      ChangeFirstMonth(currentDate.AddDate(0, -1, 0)).Format("2006-01-02"),
@@ -245,7 +245,7 @@ func TestSplitDatesByMonth(t *testing.T) {
 		},
 		{
 			comparisonType: "End date after today",
-			start:          "2020-12-01",
+			start:          "2022-12-01",
 			end:            "3020-12-30",
 			numMonths:      1,
 			wantStart:      ChangeFirstMonth(currentDate.AddDate(0, -1, 0)).Format("2006-01-02"),
