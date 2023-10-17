@@ -122,7 +122,7 @@ tornado==6.2
 traitlets==5.5.0
 update==0.0.1
 uritemplate==4.1.1
-urllib3==1.26.12
+urllib3==1.26.18
 wcwidth==0.2.5
 webencodings==0.5.1
 websocket-client==1.4.2
