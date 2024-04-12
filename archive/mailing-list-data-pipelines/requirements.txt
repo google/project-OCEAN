@@ -20,7 +20,7 @@ debugpy==1.6.3
 decorator==5.1.1
 defusedxml==0.7.1
 dill==0.3.6
-dnspython==2.2.1
+dnspython==2.6.1
 entrypoints==0.4
 exceptiongroup==1.0.4
 executing==1.2.0
