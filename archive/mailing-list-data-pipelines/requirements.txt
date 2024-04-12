@@ -42,7 +42,7 @@ googleapis-common-protos==1.57.0
 grpcio==1.50.0
 grpcio-status==1.50.0
 httplib2==0.21.0
-idna==3.4
+idna==3.7
 importlib-metadata==5.0.0
 iniconfig==1.1.1
 ipykernel==6.17.1
